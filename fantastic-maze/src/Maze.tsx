@@ -95,14 +95,29 @@ const Maze: React.FC = () => {
 
   return (
     <div className="maze-container">
-      <h2>Maze Game</h2>
       <button onClick={regenerate}>Regenerate Maze</button>
       <div className="maze-grid">
         {maze.map((row, rIdx) => (
           <div className="maze-row" key={rIdx}>
             {row.map((cell, cIdx) => {
               let className = cell === 1 ? 'maze-wall' : 'maze-path';
-              if (rIdx === player.row && cIdx === player.col) className += ' maze-player';
+              if (rIdx === player.row && cIdx === player.col) {
+                className += ' maze-player';
+                return (
+                  <div
+                    className={className}
+                    key={cIdx}
+                    style={{
+                      backgroundImage: "url(/src/assets/player.png)",
+                      backgroundSize: 'contain',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundColor: 'transparent',
+                      border: 'none', // Remove white border for transparency
+                    }}
+                  />
+                );
+              }
               if (rIdx === 0 && cIdx === 0) className += ' maze-entrance';
               if (rIdx === MAZE_SIZE - 1 && cIdx === MAZE_SIZE - 1) className += ' maze-exit';
               return <div className={className} key={cIdx} />;
