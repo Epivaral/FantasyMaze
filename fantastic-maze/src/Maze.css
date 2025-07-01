@@ -1,0 +1,62 @@
+.maze-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.maze-grid {
+  display: flex;
+  flex-direction: column;
+  border: 2px solid #888;
+  background: #222;
+  margin: 1rem 0;
+}
+
+.maze-row {
+  display: flex;
+}
+
+.maze-wall {
+  width: 32px;
+  height: 32px;
+  background: #444;
+  border: 1px solid #222;
+}
+
+.maze-path {
+  width: 32px;
+  height: 32px;
+  background: #222;
+  border: 1px solid #333;
+}
+
+.maze-player {
+  background: #fff !important;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+  /* If using an image, add:
+  background-image: url('./assets/player.png');
+  background-size: cover;
+  background-position: center;
+  */
+}
+
+.maze-entrance {
+  box-shadow: 0 0 6px 2px #0f0;
+}
+
+.maze-exit {
+  box-shadow: 0 0 6px 2px #f00;
+}
+
+.maze-win {
+  color: #0f0;
+  font-size: 1.5rem;
+  margin: 1rem 0;
+}
+
+.maze-instructions {
+  color: #aaa;
+  margin-top: 0.5rem;
+}
