@@ -6,6 +6,7 @@ import wolfImg from './assets/wolf.png';
 import hiResPlayerImg from './assets/hi-res/player.png';
 import hiResBonesImg from './assets/hi-res/bones.png';
 import hiResWolfImg from './assets/hi-res/wolf.png';
+import { renderHearts } from './HeartBar';
 
 const MAZE_SIZE = 20;
 
@@ -215,7 +216,7 @@ const Maze: React.FC = () => {
         <div className="player-stats-box">
           <h2>Player Stats</h2>
           <ul>
-            <li>HP: {health}</li>
+            <li>{renderHearts(health)}</li>
             <li>Attack: 10</li>
             <li>Defense: 5</li>
             {/* Add more stats as needed */}
@@ -277,9 +278,17 @@ const Maze: React.FC = () => {
             <div className="maze-modal-content">
               <div className="versus-title">VERSUS!</div>
               <div className="versus-row">
-                <img src={hiResPlayerImg} alt="player" className="versus-img" />
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                  <img src={hiResPlayerImg} alt="player" className="versus-img" />
+                  <span className="asset-name">The Woken Blades</span>
+                </div>
                 <span className="versus-vs">VS</span>
-                <img src={modal.type === 'bones' ? hiResBonesImg : hiResWolfImg} alt={modal.type} className="versus-img" />
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                  <img src={modal.type === 'bones' ? hiResBonesImg : hiResWolfImg} alt={modal.type} className="versus-img" />
+                  <span className="asset-name">
+                    {modal.type === 'bones' ? 'Rustling Bones' : 'Night Prowler'}
+                  </span>
+                </div>
               </div>
               <div className="versus-instructions">Press SPACE to defeat the mob and continue<br/>You lose 20 HP!</div>
             </div>

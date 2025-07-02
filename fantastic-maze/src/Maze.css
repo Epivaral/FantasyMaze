@@ -148,12 +148,23 @@
   color: #f00;
 }
 
+
 .versus-title {
   font-size: 2.5rem;
   color: #fff;
   font-weight: bold;
   margin-bottom: 1.5rem;
   letter-spacing: 0.2em;
+}
+
+/* Asset name text under VS images */
+.versus-row .asset-name {
+  color: gold;
+  font-size: 1.25rem;
+  font-weight: bold;
+  text-shadow: 1px 1px 4px #000, 0 0 2px #fff8, 0 0 8px #000a;
+  margin-top: 4px;
+  letter-spacing: 0.04em;
 }
 
 .versus-row {
