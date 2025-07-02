@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'fantastic-maze/**'
+      - '.github/workflows/azure-static-web-apps-salmon-pebble-04158191e.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+    paths:
+      - 'fantastic-maze/**'
+      - '.github/workflows/azure-static-web-apps-salmon-pebble-04158191e.yml'
 
 jobs:
   build_and_deploy_job:
@@ -28,9 +34,9 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/fantastic-maze/" # App source code path
-          api_location: "api" # Api source code path - optional
-          output_location: "build" # Built app content directory - optional
+          app_location: "/fantastic-maze" # App source code path (no trailing slash)
+          api_location: "" # No API folder
+          output_location: "dist" # Vite default build output
           ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:
