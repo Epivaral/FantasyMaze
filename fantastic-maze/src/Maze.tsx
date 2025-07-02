@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import './Maze.css';
+import playerImg from './assets/player.png';
 
 const MAZE_SIZE = 20;
 
@@ -102,20 +103,23 @@ const Maze: React.FC = () => {
             {row.map((cell, cIdx) => {
               let className = cell === 1 ? 'maze-wall' : 'maze-path';
               if (rIdx === player.row && cIdx === player.col) {
-                className += ' maze-player';
                 return (
                   <div
                     className={className}
                     key={cIdx}
-                    style={{
-                      backgroundImage: "url(/src/assets/player.png)",
-                      backgroundSize: 'contain',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundColor: 'transparent',
-                      border: 'none', // Remove white border for transparency
-                    }}
-                  />
+                  >
+                    <img
+                      src={playerImg}
+                      alt="player"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'block',
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                      }}
+                    />
+                  </div>
                 );
               }
               if (rIdx === 0 && cIdx === 0) className += ' maze-entrance';

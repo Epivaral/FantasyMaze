@@ -37,8 +37,15 @@
 
 .maze-player {
   /* Player image is set inline in Maze.tsx */
-  border: 2px solid #fff;
   box-sizing: border-box;
+  border: 2px solid #fff;
+  position: relative;
+  z-index: 2;
+}
+
+/* Remove background from .maze-path when player is present */
+.maze-path.maze-player {
+  background: transparent !important;
 }
 
 .maze-entrance {
