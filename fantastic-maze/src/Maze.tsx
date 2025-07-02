@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './Maze.css';
 import playerImg from './assets/player.png';
 import bonesImg from './assets/bones.png';
@@ -192,7 +192,7 @@ const Maze: React.FC = () => {
 
     function spin() {
       if (!running) return;
-      setRouletteResult(Math.random() < 0.5 ? 0 : 20);
+      setRouletteResult(Math.random() >= 0.6 ? 20 : 0);
       timeout = setTimeout(spin, 80); // constant fast speed
     }
 
@@ -207,101 +207,130 @@ const Maze: React.FC = () => {
   // Handle HP gain and vial removal after roulette
   // Handle HP gain and vial removal after roulette, now on spacebar after stop
 
-  // Handle keyboard movement
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (endModal) {
-      if (e.key === ' ') {
-        regenerate();
-      }
-      return;
-    }
-    if (modal) {
-      if (modal.type === 'hp') {
-        // 1. If spinning, spacebar stops the spin
-        if (rouletteSpinning && e.key === ' ') {
-          setRouletteSpinning(false);
-          return;
-        }
-        // 2. If not spinning, spacebar applies result and closes modal
-        if (!rouletteSpinning && e.key === ' ' && rouletteResult !== null) {
-          console.log('HP MODAL: spacebar pressed, closing modal. modal:', modal, 'rouletteResult:', rouletteResult);
-          if (rouletteResult > 0) {
-            setHealth(h => Math.min(100, h + 20));
-          }
-          setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
-          setModal(null);
-          setTimeout(() => {
-            console.log('HP MODAL: after modal close, resetting roulette state');
-            setRouletteResult(null);
-            setRouletteSpinning(false);
-          }, 0);
-          return;
-        }
-        return;
-      } else {
-        if (e.key === ' ') {
-          // Remove the mob from the cell and deplete HP only once per encounter
-          setHealth(h => {
-            const newHealth = h - 20;
-            if (newHealth <= 0) {
-              setEndModal('lose');
-              setModal(null);
-              return 0;
-            }
-            return newHealth;
-          });
-          setMobs(prev => {
-            if (!modal) return prev;
-            const { type, row, col } = modal;
-            return {
-              bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
-              wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
-            };
-          });
-          setModal(null);
-        }
-        return;
-      }
-    }
-    let { row, col } = player;
-    if (e.key === 'ArrowUp' && row > 0 && maze[row - 1][col] === 0) row--;
-    if (e.key === 'ArrowDown' && row < MAZE_SIZE - 1 && maze[row + 1][col] === 0) row++;
-    if (e.key === 'ArrowLeft' && col > 0 && maze[row][col - 1] === 0) col--;
-    if (e.key === 'ArrowRight' && col < MAZE_SIZE - 1 && maze[row][col + 1] === 0) col++;
-    // Check for mob collision
-    const mobBones = mobs.bones.find(m => m.row === row && m.col === col);
-    const mobWolf = mobs.wolves.find(m => m.row === row && m.col === col);
-    const hpVial = hpVials.find(v => v.row === row && v.col === col);
-    if (mobBones) {
-      setModal({ type: 'bones', row, col });
-      setPlayer({ row, col });
-      return;
-    }
-    if (mobWolf) {
-      setModal({ type: 'wolf', row, col });
-      setPlayer({ row, col });
-      return;
-    }
-    if (hpVial) {
-      setModal({ type: 'hp', row, col });
-      setPlayer({ row, col });
-      // Always start spinning when entering a vial cell
-      setRouletteResult(null);
-      setRouletteSpinning(true);
-      return;
-    }
-    setPlayer({ row, col });
-    if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1) {
-      setWon(true);
-      setEndModal('win');
-    }
-  }, [player, maze, won, mobs, modal, endModal]);
 
-  // Listen for keyboard events
+  // --- Stable event handler using refs ---
+  const modalRef = useRef(modal);
+  const rouletteSpinningRef = useRef(rouletteSpinning);
+  const rouletteResultRef = useRef(rouletteResult);
+  const endModalRef = useRef(endModal);
+  const playerRef = useRef(player);
+  const mazeRef = useRef(maze);
+  const mobsRef = useRef(mobs);
+  const hpVialsRef = useRef(hpVials);
+  const wonRef = useRef(won);
+
+  useEffect(() => { modalRef.current = modal; }, [modal]);
+  useEffect(() => { rouletteSpinningRef.current = rouletteSpinning; }, [rouletteSpinning]);
+  useEffect(() => { rouletteResultRef.current = rouletteResult; }, [rouletteResult]);
+  useEffect(() => { endModalRef.current = endModal; }, [endModal]);
+  useEffect(() => { playerRef.current = player; }, [player]);
+  useEffect(() => { mazeRef.current = maze; }, [maze]);
+  useEffect(() => { mobsRef.current = mobs; }, [mobs]);
+  useEffect(() => { hpVialsRef.current = hpVials; }, [hpVials]);
+  useEffect(() => { wonRef.current = won; }, [won]);
+
   useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // ...existing code...
+      const modal = modalRef.current;
+      const rouletteSpinning = rouletteSpinningRef.current;
+      const rouletteResult = rouletteResultRef.current;
+      const endModal = endModalRef.current;
+      const player = playerRef.current;
+      const maze = mazeRef.current;
+      const mobs = mobsRef.current;
+      const hpVials = hpVialsRef.current;
+      const won = wonRef.current;
+
+        if (endModal) {
+          if (e.key === ' ') {
+            regenerate();
+          }
+          return;
+        }
+      if (modal) {
+        if (modal.type === 'hp') {
+          // 1. If spinning, spacebar stops the spin
+          if (rouletteSpinning && e.key === ' ') {
+            setRouletteSpinning(false);
+            return;
+          }
+          // 2. If not spinning, spacebar applies result and closes modal
+          if (!rouletteSpinning && e.key === ' ' && rouletteResult !== null) {
+            if (rouletteResult > 0) {
+              setHealth(h => Math.min(100, h + 20));
+            }
+            setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
+            setModal(null);
+            setTimeout(() => {
+              setRouletteResult(null);
+              setRouletteSpinning(false);
+            }, 0);
+            return;
+          }
+          return;
+        } else {
+          if (e.key === ' ') {
+            setHealth(h => {
+              const newHealth = h - 20;
+              if (newHealth <= 0) {
+                setEndModal('lose');
+                setModal(null);
+                return 0;
+              }
+              return newHealth;
+            });
+            setMobs(prev => {
+              if (!modal) return prev;
+              const { type, row, col } = modal;
+              const newMobs = {
+                bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
+                wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
+              };
+              return newMobs;
+            });
+            setModal(null);
+          }
+          return;
+        }
+      }
+      let { row, col } = player;
+      if (e.key === 'ArrowUp' && row > 0 && maze[row - 1][col] === 0) row--;
+      if (e.key === 'ArrowDown' && row < MAZE_SIZE - 1 && maze[row + 1][col] === 0) row++;
+      if (e.key === 'ArrowLeft' && col > 0 && maze[row][col - 1] === 0) col--;
+      if (e.key === 'ArrowRight' && col < MAZE_SIZE - 1 && maze[row][col + 1] === 0) col++;
+      // Check for mob collision
+      const mobBones = mobs.bones.find(m => m.row === row && m.col === col);
+      const mobWolf = mobs.wolves.find(m => m.row === row && m.col === col);
+      const hpVial = hpVials.find(v => v.row === row && v.col === col);
+      if (mobBones) {
+        setModal({ type: 'bones', row, col });
+        setPlayer({ row, col });
+        return;
+      }
+      if (mobWolf) {
+        setModal({ type: 'wolf', row, col });
+        setPlayer({ row, col });
+        return;
+      }
+      if (hpVial) {
+        setModal({ type: 'hp', row, col });
+        setPlayer({ row, col });
+        setRouletteResult(null);
+        setRouletteSpinning(true);
+        return;
+      }
+      setPlayer({ row, col });
+      if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1) {
+        setWon(true);
+        setEndModal('win');
+      }
+    }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  }, []);
+
+  // (removed old useEffect for handleKeyDown)
 
   // Regenerate maze
   const regenerate = () => {
