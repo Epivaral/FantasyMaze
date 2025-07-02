@@ -9,6 +9,7 @@ import hiResWolfImg from './assets/hi-res/wolf.png';
 import { renderHearts } from './HeartBar';
 import hpImg from './assets/hp.png';
 import hiResHpImg from './assets/hi-res/hp.png';
+import hiResBackground from './assets/hi-res/background.png';
 
 const MAZE_SIZE = 20;
 
@@ -127,7 +128,7 @@ interface Player {
 }
 
 type ModalType =
-  | { type: 'bones' | 'wolf', row: number, col: number }
+  | { type: 'bones' | 'wolf', row: number, col: number, options: number[] }
   | { type: 'hp', row: number, col: number }
   | null;
 
@@ -140,7 +141,8 @@ const Maze: React.FC = () => {
   const [modal, setModal] = useState<ModalType>(null);
   // Use a simple boolean for spinning status
   const [rouletteSpinning, setRouletteSpinning] = useState(false);
-  const [rouletteResult, setRouletteResult] = useState<0 | 20 | null>(null);
+  // Roulette result is an index for mobs, value for HP vials
+  const [rouletteResult, setRouletteResult] = useState<number | null>(null);
   // Remove rouletteApplied, use modal presence as the only trigger
   const [health, setHealth] = useState(100);
   const [endModal, setEndModal] = useState<null | 'win' | 'lose'>(null);
@@ -183,21 +185,32 @@ const Maze: React.FC = () => {
   }, [maze]);
 
   // HP Vial Roulette Logic
-  // HP Vial Roulette Logic
+  // Mob and HP vial roulette logic (with animation for both, using options array for mobs)
   useEffect(() => {
-    if (!modal || modal.type !== 'hp') return;
-    if (!rouletteSpinning) return;
+    if (!modal || !rouletteSpinning) return;
     let running = true;
     let timeout: any;
-
     function spin() {
-      if (!running) return;
-      setRouletteResult(Math.random() >= 0.6 ? 20 : 0);
-      timeout = setTimeout(spin, 80); // constant fast speed
+      if (!running || !modal) return;
+      let options: number[] = [];
+      if (modal.type === 'hp') {
+        // HP vial: Weighted: 0 HP (25%), 10 HP (50%), 20 HP (25%)
+        const rand = Math.random();
+        let result: 0 | 1 | 2;
+        if (rand < 0.25) result = 0;
+        else if (rand < 0.75) result = 1;
+        else result = 2;
+        setRouletteResult([0, 10, 20][result]);
+      } else if (modal.type === 'bones') {
+        options = [10, 20];
+        setRouletteResult(Math.floor(Math.random() * options.length));
+      } else if (modal.type === 'wolf') {
+        options = [20, 30];
+        setRouletteResult(Math.floor(Math.random() * options.length));
+      }
+      timeout = setTimeout(spin, 80);
     }
-
     spin();
-
     return () => {
       running = false;
       if (timeout) clearTimeout(timeout);
@@ -240,7 +253,7 @@ const Maze: React.FC = () => {
       const maze = mazeRef.current;
       const mobs = mobsRef.current;
       const hpVials = hpVialsRef.current;
-      const won = wonRef.current;
+      // const won = wonRef.current; // (unused)
 
         if (endModal) {
           if (e.key === ' ') {
@@ -248,8 +261,15 @@ const Maze: React.FC = () => {
           }
           return;
         }
+      // Keyboard handler: use modal.options and index for all modals
       if (modal) {
-        if (modal.type === 'hp') {
+        let options: number[] = [];
+        if (modal.type === 'bones' || modal.type === 'wolf') {
+          options = modal.options;
+        } else if (modal.type === 'hp') {
+          options = [0, 10, 20];
+        }
+        if (options.length > 0) {
           // 1. If spinning, spacebar stops the spin
           if (rouletteSpinning && e.key === ' ') {
             setRouletteSpinning(false);
@@ -257,39 +277,42 @@ const Maze: React.FC = () => {
           }
           // 2. If not spinning, spacebar applies result and closes modal
           if (!rouletteSpinning && e.key === ' ' && rouletteResult !== null) {
-            if (rouletteResult > 0) {
-              setHealth(h => Math.min(100, h + 20));
+            let effect: number;
+            if (modal.type === 'hp') {
+              effect = rouletteResult; // HP modal: rouletteResult is the HP value
+              if (effect > 0) {
+                setHealth(h => Math.min(100, h + effect));
+              }
+              setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
+            } else {
+              effect = options[rouletteResult]; // Mob modal: rouletteResult is the index
+              setHealth(h => {
+                const newHealth = h - effect;
+                if (newHealth <= 0) {
+                  setEndModal('lose');
+                  setModal(null);
+                  setRouletteResult(null);
+                  setRouletteSpinning(false);
+                  return 0;
+                }
+                return newHealth;
+              });
+              setMobs(prev => {
+                if (!modal) return prev;
+                const { type, row, col } = modal;
+                const newMobs = {
+                  bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
+                  wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
+                };
+                return newMobs;
+              });
             }
-            setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
             setModal(null);
             setTimeout(() => {
               setRouletteResult(null);
               setRouletteSpinning(false);
             }, 0);
             return;
-          }
-          return;
-        } else {
-          if (e.key === ' ') {
-            setHealth(h => {
-              const newHealth = h - 20;
-              if (newHealth <= 0) {
-                setEndModal('lose');
-                setModal(null);
-                return 0;
-              }
-              return newHealth;
-            });
-            setMobs(prev => {
-              if (!modal) return prev;
-              const { type, row, col } = modal;
-              const newMobs = {
-                bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
-                wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
-              };
-              return newMobs;
-            });
-            setModal(null);
           }
           return;
         }
@@ -304,13 +327,17 @@ const Maze: React.FC = () => {
       const mobWolf = mobs.wolves.find(m => m.row === row && m.col === col);
       const hpVial = hpVials.find(v => v.row === row && v.col === col);
       if (mobBones) {
-        setModal({ type: 'bones', row, col });
+        setModal({ type: 'bones', row, col, options: [10, 20] });
         setPlayer({ row, col });
+        setRouletteResult(null);
+        setRouletteSpinning(true);
         return;
       }
       if (mobWolf) {
-        setModal({ type: 'wolf', row, col });
+        setModal({ type: 'wolf', row, col, options: [20, 30] });
         setPlayer({ row, col });
+        setRouletteResult(null);
+        setRouletteSpinning(true);
         return;
       }
       if (hpVial) {
@@ -338,6 +365,30 @@ const Maze: React.FC = () => {
     setPlayer({ row: 0, col: 0 });
     setWon(false);
   };
+
+  // MobRoulette component for mob damage roulette
+  function MobRoulette({ options, spinning, selectedIndex }: { options: number[], spinning: boolean, selectedIndex?: number }) {
+    return (
+      <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '2rem'}}>
+        {options.map((val, idx) => (
+          <div key={val} style={{
+            border: selectedIndex === idx ? '4px solid gold' : '2px solid #888',
+            borderRadius: 12,
+            padding: '1rem 2.5rem',
+            background: '#181818',
+            color: val === Math.min(...options) ? '#ff0' : '#f00',
+            fontWeight: 'bold',
+            fontSize: '2rem',
+            boxShadow: selectedIndex === idx ? '0 0 16px gold' : 'none',
+            opacity: spinning && selectedIndex !== idx ? 0.5 : 1,
+            transition: 'all 0.2s',
+          }}>
+            {modal && modal.type === 'hp' ? (val === 0 ? '0 HP' : `+${val} HP`) : `-${val} HP`}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="maze-layout">
@@ -416,7 +467,11 @@ const Maze: React.FC = () => {
         </div>
         {modal && modal.type !== 'hp' && (
           <div className="maze-modal vs-modal">
-            <div className="maze-modal-content">
+            <div className="maze-modal-content" style={{
+              backgroundImage: `url(${hiResBackground})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}>
               <div className="versus-title">VERSUS!</div>
               <div className="versus-row">
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
@@ -431,13 +486,25 @@ const Maze: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <div className="versus-instructions">Press SPACE to defeat the mob and continue<br/>You lose 20 HP!</div>
+              {/* Mob roulette UI using options array and selectedIndex */}
+              <MobRoulette options={modal.type === 'bones' || modal.type === 'wolf' ? modal.options : []} spinning={rouletteSpinning} selectedIndex={rouletteResult as number | undefined} />
+              <div className="versus-instructions">
+                {rouletteSpinning
+                  ? 'Press SPACE to stop the roulette!'
+                  : (typeof rouletteResult === 'number' && (modal.type === 'bones' || modal.type === 'wolf'))
+                    ? (<><br/>You lost {modal.options[rouletteResult as number]} HP!<br/>Press SPACE to continue.</>)
+                    : (modal.type === 'bones' ? 'You lose 10 or 20 HP!' : 'You lose 20 or 30 HP!')}
+              </div>
             </div>
           </div>
         )}
         {modal && modal.type === 'hp' && (
           <div className="maze-modal vs-modal">
-            <div className="maze-modal-content">
+            <div className="maze-modal-content" style={{
+              backgroundImage: `url(${hiResBackground})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}>
               <div className="versus-title">HP VIAL!</div>
               <div className="versus-row">
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
@@ -455,20 +522,20 @@ const Maze: React.FC = () => {
                 {!rouletteSpinning && rouletteResult !== null && (<><br/>You gained {rouletteResult} HP!<br/>Press SPACE to continue.</>)}
               </div>
               <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '2rem'}}>
-                {[0, 20].map((val, idx) => (
+                {[0, 10, 20].map((val) => (
                   <div key={val} style={{
                     border: rouletteResult === val ? '4px solid gold' : '2px solid #888',
                     borderRadius: 12,
                     padding: '1rem 2.5rem',
                     background: '#181818',
-                    color: val === 0 ? '#f00' : '#0f0',
+                    color: val === 0 ? '#f00' : val === 10 ? '#ff0' : '#0f0',
                     fontWeight: 'bold',
                     fontSize: '2rem',
                     boxShadow: rouletteResult === val ? '0 0 16px gold' : 'none',
                     opacity: rouletteSpinning && rouletteResult !== val ? 0.5 : 1,
                     transition: 'all 0.2s',
                   }}>
-                    {val === 0 ? '0 HP' : '+20 HP'}
+                    {val === 0 ? '0 HP' : `+${val} HP`}
                   </div>
                 ))}
               </div>
@@ -477,7 +544,11 @@ const Maze: React.FC = () => {
         )}
         {endModal && (
           <div className={`maze-modal ${endModal === 'win' ? 'win-modal' : 'lose-modal'}`}>
-            <div className="maze-modal-content">
+            <div className="maze-modal-content" style={{
+              backgroundImage: `url(${hiResBackground})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}>
               <div className="versus-title">{endModal === 'win' ? 'YOU WIN!' : 'GAME OVER'}</div>
               <div className="versus-row">
                 <img src={hiResPlayerImg} alt="player" className="versus-img" />
