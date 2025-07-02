@@ -7,6 +7,8 @@ import hiResPlayerImg from './assets/hi-res/player.png';
 import hiResBonesImg from './assets/hi-res/bones.png';
 import hiResWolfImg from './assets/hi-res/wolf.png';
 import { renderHearts } from './HeartBar';
+import hpImg from './assets/hp.png';
+import hiResHpImg from './assets/hi-res/hp.png';
 
 const MAZE_SIZE = 20;
 
@@ -124,21 +126,86 @@ interface Player {
   col: number;
 }
 
+type ModalType =
+  | { type: 'bones' | 'wolf', row: number, col: number }
+  | { type: 'hp', row: number, col: number }
+  | null;
+
 const Maze: React.FC = () => {
   const [maze, setMaze] = useState<Cell[][]>(() => generateMaze(MAZE_SIZE));
   const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
   const [won, setWon] = useState(false);
   const [mobs, setMobs] = useState<{ bones: {row: number, col: number}[], wolves: {row: number, col: number}[] }>({ bones: [], wolves: [] });
-  const [modal, setModal] = useState<null | { type: 'bones' | 'wolf', row: number, col: number }>(null);
+  const [hpVials, setHpVials] = useState<{row: number, col: number}[]>([]);
+  const [modal, setModal] = useState<ModalType>(null);
+  // Use a simple boolean for spinning status
+  const [rouletteSpinning, setRouletteSpinning] = useState(false);
+  const [rouletteResult, setRouletteResult] = useState<0 | 20 | null>(null);
+  // Remove rouletteApplied, use modal presence as the only trigger
   const [health, setHealth] = useState(100);
   const [endModal, setEndModal] = useState<null | 'win' | 'lose'>(null);
 
   // Place mobs when maze or player resets
   useEffect(() => {
-    setMobs(placeMobs(maze, { row: 0, col: 0 }));
+    // Place mobs
+    const mobsPlaced = placeMobs(maze, { row: 0, col: 0 });
+    // Place 1-3 HP vials randomly (not on player, mobs, or entrance/exit)
+    const size = maze.length;
+    const avoid = [
+      { row: 0, col: 0 },
+      { row: size - 1, col: size - 1 },
+      ...mobsPlaced.bones,
+      ...mobsPlaced.wolves,
+    ];
+    const pathCells: {row: number, col: number}[] = [];
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (maze[r][c] === 0 && !avoid.some(p => p.row === r && p.col === c)) {
+          pathCells.push({ row: r, col: c });
+        }
+      }
+    }
+    const vialCount = Math.floor(Math.random() * 3) + 1; // 1-3 vials
+    const vials: {row: number, col: number}[] = [];
+    let tries = 0;
+    while (vials.length < vialCount && tries < 1000 && pathCells.length > 0) {
+      const idx = Math.floor(Math.random() * pathCells.length);
+      const pos = pathCells[idx];
+      if (!vials.some(p => p.row === pos.row && p.col === pos.col)) {
+        vials.push(pos);
+      }
+      tries++;
+    }
+    setMobs(mobsPlaced);
+    setHpVials(vials);
     setHealth(100);
     setEndModal(null);
   }, [maze]);
+
+  // HP Vial Roulette Logic
+  // HP Vial Roulette Logic
+  useEffect(() => {
+    if (!modal || modal.type !== 'hp') return;
+    if (!rouletteSpinning) return;
+    let running = true;
+    let timeout: any;
+
+    function spin() {
+      if (!running) return;
+      setRouletteResult(Math.random() < 0.5 ? 0 : 20);
+      timeout = setTimeout(spin, 80); // constant fast speed
+    }
+
+    spin();
+
+    return () => {
+      running = false;
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [rouletteSpinning, modal]);
+
+  // Handle HP gain and vial removal after roulette
+  // Handle HP gain and vial removal after roulette, now on spacebar after stop
 
   // Handle keyboard movement
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -149,28 +216,52 @@ const Maze: React.FC = () => {
       return;
     }
     if (modal) {
-      if (e.key === ' ') {
-        // Remove the mob from the cell and deplete HP only once per encounter
-        setHealth(h => {
-          const newHealth = h - 20;
-          if (newHealth <= 0) {
-            setEndModal('lose');
-            setModal(null);
-            return 0;
+      if (modal.type === 'hp') {
+        // 1. If spinning, spacebar stops the spin
+        if (rouletteSpinning && e.key === ' ') {
+          setRouletteSpinning(false);
+          return;
+        }
+        // 2. If not spinning, spacebar applies result and closes modal
+        if (!rouletteSpinning && e.key === ' ' && rouletteResult !== null) {
+          console.log('HP MODAL: spacebar pressed, closing modal. modal:', modal, 'rouletteResult:', rouletteResult);
+          if (rouletteResult > 0) {
+            setHealth(h => Math.min(100, h + 20));
           }
-          return newHealth;
-        });
-        setMobs(prev => {
-          if (!modal) return prev;
-          const { type, row, col } = modal;
-          return {
-            bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
-            wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
-          };
-        });
-        setModal(null);
+          setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
+          setModal(null);
+          setTimeout(() => {
+            console.log('HP MODAL: after modal close, resetting roulette state');
+            setRouletteResult(null);
+            setRouletteSpinning(false);
+          }, 0);
+          return;
+        }
+        return;
+      } else {
+        if (e.key === ' ') {
+          // Remove the mob from the cell and deplete HP only once per encounter
+          setHealth(h => {
+            const newHealth = h - 20;
+            if (newHealth <= 0) {
+              setEndModal('lose');
+              setModal(null);
+              return 0;
+            }
+            return newHealth;
+          });
+          setMobs(prev => {
+            if (!modal) return prev;
+            const { type, row, col } = modal;
+            return {
+              bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
+              wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
+            };
+          });
+          setModal(null);
+        }
+        return;
       }
-      return;
     }
     let { row, col } = player;
     if (e.key === 'ArrowUp' && row > 0 && maze[row - 1][col] === 0) row--;
@@ -180,14 +271,23 @@ const Maze: React.FC = () => {
     // Check for mob collision
     const mobBones = mobs.bones.find(m => m.row === row && m.col === col);
     const mobWolf = mobs.wolves.find(m => m.row === row && m.col === col);
+    const hpVial = hpVials.find(v => v.row === row && v.col === col);
     if (mobBones) {
       setModal({ type: 'bones', row, col });
-      setPlayer({ row, col }); // Move player into the cell for modal
+      setPlayer({ row, col });
       return;
     }
     if (mobWolf) {
       setModal({ type: 'wolf', row, col });
-      setPlayer({ row, col }); // Move player into the cell for modal
+      setPlayer({ row, col });
+      return;
+    }
+    if (hpVial) {
+      setModal({ type: 'hp', row, col });
+      setPlayer({ row, col });
+      // Always start spinning when entering a vial cell
+      setRouletteResult(null);
+      setRouletteSpinning(true);
       return;
     }
     setPlayer({ row, col });
@@ -266,6 +366,18 @@ const Maze: React.FC = () => {
                     </div>
                   );
                 }
+                // HP vial
+                if (hpVials.some(v => v.row === rIdx && v.col === cIdx)) {
+                  return (
+                    <div className={className} key={cIdx}>
+                      <img
+                        src={hpImg}
+                        alt="hp vial"
+                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none', userSelect: 'none' }}
+                      />
+                    </div>
+                  );
+                }
                 if (rIdx === 0 && cIdx === 0) className += ' maze-entrance';
                 if (rIdx === MAZE_SIZE - 1 && cIdx === MAZE_SIZE - 1) className += ' maze-exit';
                 return <div className={className} key={cIdx} />;
@@ -273,7 +385,7 @@ const Maze: React.FC = () => {
             </div>
           ))}
         </div>
-        {modal && (
+        {modal && modal.type !== 'hp' && (
           <div className="maze-modal vs-modal">
             <div className="maze-modal-content">
               <div className="versus-title">VERSUS!</div>
@@ -291,6 +403,46 @@ const Maze: React.FC = () => {
                 </div>
               </div>
               <div className="versus-instructions">Press SPACE to defeat the mob and continue<br/>You lose 20 HP!</div>
+            </div>
+          </div>
+        )}
+        {modal && modal.type === 'hp' && (
+          <div className="maze-modal vs-modal">
+            <div className="maze-modal-content">
+              <div className="versus-title">HP VIAL!</div>
+              <div className="versus-row">
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                  <img src={hiResPlayerImg} alt="player" className="versus-img" />
+                  <span className="asset-name">The Woken Blades</span>
+                </div>
+                <span className="versus-vs">+</span>
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                  <img src={hiResHpImg} alt="hp vial" className="versus-img" />
+                  <span className="asset-name">HP Vial</span>
+                </div>
+              </div>
+              <div className="versus-instructions">
+                {rouletteSpinning && 'Press SPACE to stop the roulette!'}
+                {!rouletteSpinning && rouletteResult !== null && (<><br/>You gained {rouletteResult} HP!<br/>Press SPACE to continue.</>)}
+              </div>
+              <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '2rem'}}>
+                {[0, 20].map((val, idx) => (
+                  <div key={val} style={{
+                    border: rouletteResult === val ? '4px solid gold' : '2px solid #888',
+                    borderRadius: 12,
+                    padding: '1rem 2.5rem',
+                    background: '#181818',
+                    color: val === 0 ? '#f00' : '#0f0',
+                    fontWeight: 'bold',
+                    fontSize: '2rem',
+                    boxShadow: rouletteResult === val ? '0 0 16px gold' : 'none',
+                    opacity: rouletteSpinning && rouletteResult !== val ? 0.5 : 1,
+                    transition: 'all 0.2s',
+                  }}>
+                    {val === 0 ? '0 HP' : '+20 HP'}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
