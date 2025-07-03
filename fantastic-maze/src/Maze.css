@@ -69,8 +69,8 @@
 .maze-grid {
   display: flex;
   flex-direction: column;
-  border: 2px solid #888;
-  background: #ffffff;
+  border: 0px ;
+  background: #000000;
   margin: 1rem 0;
 }
 
@@ -92,7 +92,7 @@
 .maze-path {
   width: 40px;
   height: 40px;
-  background: #585858;
+  background: #333;
   border: 1px solid #333;
 }
 

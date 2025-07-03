@@ -57,3 +57,36 @@ Some reached the throne.
 None were remembered.
 
 Another rises.
+
+---
+
+# The Maw Below
+
+> It does not dig. The world gives way.
+
+No record speaks of when it first moved, only of the stone that vanished around it.
+
+Miners tell tales of heat, breathless tremors, and soil that weeps.
+
+Entire caverns gone.
+No bones. No light.
+
+Some say it sleeps.
+Others say it listens.
+
+The ground, it seems, remembers how to open.
+
+
+---
+
+# Cursed Monk
+
+> Its prayers were never answered. Still, it whispers.
+
+Bound in silence by its own faith, the flesh gave way — but the curse endured.
+
+What remains is not devotion, but the echo of devotion.
+
+It speaks in rot. It breathes through others.
+
+Where it kneels, the dead do not rest.

@@ -1,0 +1,12 @@
+{
+  "min": 0,
+  "max": 3,
+  "image": "assets/maw.png",
+  "hiResImage": "assets/hi-res/maw.png",
+  "outcomes": [
+    { "label": "Teleport", "action": "teleport", "weight": 0.25 },
+    { "label": "Devoured (Game Over)", "action": "lose", "weight": 0.25 },
+    { "label": "Lose 30 HP", "action": "hp_gain", "amount": -30, "weight": 0.25 },
+    { "label": "Defeat the Maw", "action": "defeat", "weight": 0.25 }
+  ]
+}

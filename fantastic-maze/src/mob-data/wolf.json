@@ -1,0 +1,12 @@
+{
+  "min": 3,
+  "max": 5,
+  "image": "assets/wolf.png",
+  "hiResImage": "assets/hi-res/wolf.png",
+  "outcomes": [
+    { "label": "Defeat", "action": "defeat", "weight": 0.25 },
+    { "label": "Lose 10 HP", "action": "hp_gain", "amount": -10, "weight": 0.25 },
+    { "label": "Lose 30 HP", "action": "hp_gain", "amount": -30, "weight": 0.25 },
+    { "label": "Critical Injury (set HP to 10)", "action": "set_hp", "amount": 10, "weight": 0.25 }
+  ]
+}
