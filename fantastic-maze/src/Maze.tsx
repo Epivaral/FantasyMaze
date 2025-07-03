@@ -1,3 +1,4 @@
+import fogImg from './assets/fog.png';
 
 
 interface VsOption {
@@ -346,6 +347,47 @@ interface Player {
 
 type LoreModalState = null | { title: string, cursive: string, description: string, x: number, y: number };
 const Maze: React.FC = () => {
+  // --- Fog of War State ---
+  // Move player state above fog state to avoid use-before-declare
+  const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
+  const [fog, setFog] = useState<boolean[][]>(() => {
+    const arr = Array.from({ length: MAZE_SIZE }, () => Array(MAZE_SIZE).fill(true));
+    // Reveal initial area around player
+    const px = 0, py = 0;
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) <= 3 && !(Math.abs(dx) >= 2 && Math.abs(dy) >= 2)) {
+          const x = px + dx;
+          const y = py + dy;
+          if (x >= 0 && x < MAZE_SIZE && y >= 0 && y < MAZE_SIZE) {
+            arr[y][x] = false;
+          }
+        }
+      }
+    }
+    return arr;
+  });
+  // Reveal fog area around player whenever player moves
+  useEffect(() => {
+    setFog(prev => {
+      const arr = Array.from({ length: MAZE_SIZE }, (_, y) => prev[y].slice());
+      // First, fog everything
+      for (let y = 0; y < MAZE_SIZE; y++) for (let x = 0; x < MAZE_SIZE; x++) arr[y][x] = true;
+      // Reveal area around player (squircle/octagon shape)
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) <= 3 && !(Math.abs(dx) >= 2 && Math.abs(dy) >= 2)) {
+            const x = player.col + dx;
+            const y = player.row + dy;
+            if (x >= 0 && x < MAZE_SIZE && y >= 0 && y < MAZE_SIZE) {
+              arr[y][x] = false;
+            }
+          }
+        }
+      }
+      return arr;
+    });
+  }, [player]);
   // Lore modal state: { title, cursive, description, x, y } | null
   const [loreModal, setLoreModal] = useState<LoreModalState>(null);
   // Track if lore modal is active and follow mouse
@@ -367,7 +409,6 @@ const Maze: React.FC = () => {
     };
   }, [loreModal]);
   const [maze, setMaze] = useState<Cell[][]>(() => generateMaze(MAZE_SIZE));
-  const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
   const [won, setWon] = useState(false);
   const [mobs, setMobs] = useState<{ bones: {row: number, col: number}[], wolves: {row: number, col: number}[] }>({ bones: [], wolves: [] });
   const [hpVials, setHpVials] = useState<{row: number, col: number}[]>([]);
@@ -640,6 +681,8 @@ const Maze: React.FC = () => {
             <div className="maze-row" key={rIdx}>
               {row.map((cell, cIdx) => {
                 let className = cell === 1 ? 'maze-wall' : 'maze-path';
+                // FOG: If fogged, render fog overlay and block lore hover
+                const isFogged = fog[rIdx][cIdx];
                 // Player
                 if (rIdx === player.row && cIdx === player.col) {
                   return (
@@ -648,6 +691,7 @@ const Maze: React.FC = () => {
                       key={cIdx}
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
+                        if (isFogged) return;
                         const lore = LORE[assetToLoreTitle['player']];
                         setLoreModal({
                           title: assetToLoreTitle['player'],
@@ -665,6 +709,7 @@ const Maze: React.FC = () => {
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
                       />
+                      {isFogged && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.9,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
                 }
@@ -676,6 +721,7 @@ const Maze: React.FC = () => {
                       key={cIdx}
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
+                        if (isFogged) return;
                         const lore = LORE[assetToLoreTitle['bones']];
                         setLoreModal({
                           title: assetToLoreTitle['bones'],
@@ -693,6 +739,7 @@ const Maze: React.FC = () => {
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
                       />
+                      {isFogged && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.9,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
                 }
@@ -704,6 +751,7 @@ const Maze: React.FC = () => {
                       key={cIdx}
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
+                        if (isFogged) return;
                         const lore = LORE[assetToLoreTitle['wolf']];
                         setLoreModal({
                           title: assetToLoreTitle['wolf'],
@@ -721,6 +769,7 @@ const Maze: React.FC = () => {
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
                       />
+                      {isFogged && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.9,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
                 }
@@ -732,6 +781,7 @@ const Maze: React.FC = () => {
                       key={cIdx}
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
+                        if (isFogged) return;
                         const lore = LORE[assetToLoreTitle['hp']];
                         setLoreModal({
                           title: assetToLoreTitle['hp'],
@@ -749,11 +799,16 @@ const Maze: React.FC = () => {
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
                       />
+                      {isFogged && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.9,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
                 }
                 // Default: render wall or path cell
-                return <div className={className} key={cIdx}></div>;
+                return (
+                  <div className={className} key={cIdx} style={{position:'relative'}}>
+                    {isFogged && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.9,pointerEvents:'auto',zIndex:20}} draggable={false} />}
+                  </div>
+                );
               })}
             </div>
           ))}
