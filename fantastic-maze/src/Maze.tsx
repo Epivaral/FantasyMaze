@@ -241,7 +241,7 @@ const Maze: React.FC = () => {
   // Lore modal state: { title, cursive, description, x, y } | null
   const [loreModal, setLoreModal] = useState<LoreModalState>(null);
   // Track if lore modal is active and follow mouse
-  const loreMouseMoveRef = useRef<(e: MouseEvent) => void>();
+  // Removed unused loreMouseMoveRef to fix TS6133 warning
   // Lore modal close on key press
   useEffect(() => {
     if (!loreModal) return;
