@@ -4,7 +4,8 @@
   "image": "assets/bones.png",
   "hiResImage": "assets/hi-res/bones.png",
   "outcomes": [
-    { "label": "Lose 10 HP", "action": "hp_gain", "amount": -10, "weight": 0.5 },
-    { "label": "Lose 20 HP", "action": "hp_gain", "amount": -20, "weight": 0.5 }
+    { "label": "Defeat", "action": "defeat", "weight": 0.5 },
+    { "label": "Lose 10 HP", "action": "hp_gain", "amount": -10, "weight": 0.25 },
+    { "label": "Lose 20 HP", "action": "hp_gain", "amount": -20, "weight": 0.25 }
   ]
 }

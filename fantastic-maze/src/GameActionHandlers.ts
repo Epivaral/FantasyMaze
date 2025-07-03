@@ -33,7 +33,26 @@ export function createGameStateHandlers(params: {
   return {
     health: params.health,
     setHealth: params.setHealth,
-    addHealth: (delta) => params.setHealth(Math.max(0, Math.min(100, params.health + delta))),
+    addHealth: (delta) => {
+      // Use callback if possible, else fallback to direct set
+      if (typeof params.setHealth === 'function' && params.setHealth.length === 1) {
+        // Try to detect if setHealth is a React setter (accepts a function)
+        (params.setHealth as React.Dispatch<React.SetStateAction<number>>)((h: number) => {
+          const newHealth = Math.max(0, Math.min(100, h + delta));
+          if (newHealth <= 0) {
+            params.setEndModal('lose');
+          }
+          return newHealth;
+        });
+      } else {
+        // Fallback: use params.health
+        const newHealth = Math.max(0, Math.min(100, params.health + delta));
+        if (newHealth <= 0) {
+          params.setEndModal('lose');
+        }
+        params.setHealth(newHealth);
+      }
+    },
     defeatMob: () => {
       // Remove mob at player location
       params.setMobs(prev => {

@@ -1,5 +1,4 @@
-// --- Generic VS Modal (parameterized) ---
-// Usage: <GenericVsModal ...props />
+
 
 interface VsOption {
   label: string;
@@ -16,8 +15,8 @@ interface GenericVsModalProps {
   options: VsOption[];
   spinning: boolean;
   selectedIndex: number | null;
-  onStop: () => void;
-  onApply: (option: VsOption) => void;
+  // onStop: () => void; // Unused prop
+  // onApply: (option: VsOption) => void; // Unused prop
   hiResBackground: string;
 }
 
@@ -29,8 +28,8 @@ export const GenericVsModal: React.FC<GenericVsModalProps> = ({
   options,
   spinning,
   selectedIndex,
-  onStop,
-  onApply,
+  // onStop, // Unused prop
+  // onApply, // Unused prop
   hiResBackground,
 }) => {
   return (
@@ -127,8 +126,7 @@ function parseLore(md: string): Record<string, { cursive: string, description: s
       };
     }
   }
-  // Debug: log all parsed keys
-  console.log('LORE keys:', Object.keys(entries));
+  // (Debug log removed)
   return entries;
 }
 
@@ -281,13 +279,10 @@ function findShortestPath(maze: Cell[][]): {row: number, col: number}[] {
 }
 
 // Generate random mob positions with distance constraints, and force at least one mob on the shortest path
+// Place mobs using min/max from JSON
 function placeMobs(
   maze: Cell[][],
   player: Player,
-  minBones: number = 5,
-  maxBones: number = 10,
-  minWolves: number = 3,
-  maxWolves: number = 5,
   minDist: number = 2
 ) {
   const size = maze.length;
@@ -324,8 +319,13 @@ function placeMobs(
     }
     return chosen;
   }
-  const bonesCount = Math.floor(Math.random() * (maxBones - minBones + 1)) + minBones;
-  const wolvesCount = Math.floor(Math.random() * (maxWolves - minWolves + 1)) + minWolves;
+  // Use min/max from JSON for each mob type
+  const bonesMin = MOB_CONFIG.bones.data.min;
+  const bonesMax = MOB_CONFIG.bones.data.max;
+  const wolfMin = MOB_CONFIG.wolf.data.min;
+  const wolfMax = MOB_CONFIG.wolf.data.max;
+  const bonesCount = Math.floor(Math.random() * (bonesMax - bonesMin + 1)) + bonesMin;
+  const wolvesCount = Math.floor(Math.random() * (wolfMax - wolfMin + 1)) + wolfMin;
   let bones = pickPositions(bonesCount, [player]);
   let wolves = pickPositions(wolvesCount, [player, ...bones]);
   // Distribute forced mobs between bones and wolves randomly
@@ -342,7 +342,7 @@ interface Player {
 }
 
 
-// Remove legacy ModalType, use ModalState
+
 
 type LoreModalState = null | { title: string, cursive: string, description: string, x: number, y: number };
 const Maze: React.FC = () => {
@@ -382,7 +382,7 @@ const Maze: React.FC = () => {
 
   // Place mobs when maze or player resets
   useEffect(() => {
-    // Place mobs
+    // Place mobs using min/max from JSON
     const mobsPlaced = placeMobs(maze, { row: 0, col: 0 });
     // Place 1-3 HP vials randomly (not on player, mobs, or entrance/exit)
     const size = maze.length;
@@ -465,8 +465,8 @@ const Maze: React.FC = () => {
     };
   }, [rouletteSpinning, modal]);
 
-  // Handle HP gain and vial removal after roulette
-  // Handle HP gain and vial removal after roulette, now on spacebar after stop
+
+  // (No-op: handled in modal/roulette handler)
 
 
   // --- Stable event handler using refs ---
@@ -608,7 +608,7 @@ const Maze: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // (removed old useEffect for handleKeyDown)
+
 
   // Regenerate maze
   const regenerate = () => {
@@ -618,7 +618,7 @@ const Maze: React.FC = () => {
   };
 
 
-  // (Removed MobRoulette component, now handled by GenericVsModal)
+
 
   return (
     <div className="maze-layout">
@@ -867,31 +867,6 @@ const Maze: React.FC = () => {
             options={modal.options}
             spinning={rouletteSpinning}
             selectedIndex={typeof rouletteResult === 'number' ? rouletteResult : null}
-            onStop={() => setRouletteSpinning(false)}
-            onApply={opt => {
-              // Convert VsOption to BattleAction
-              const { action, amount } = opt;
-              let battleAction: any = { type: action };
-              if (typeof amount !== 'undefined') battleAction.value = amount;
-              executeBattleAction(battleAction, gameStateHandlers);
-              // Remove mob/vial from map if needed
-              if (modal.type === 'wolf' || modal.type === 'bones' || modal.type === 'maw') {
-                setMobs(prev => {
-                  const { type, row, col } = modal;
-                  return {
-                    bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
-                    wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
-                  };
-                });
-              } else if (modal.type === 'hp') {
-                setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
-              }
-              setModal(null);
-              setTimeout(() => {
-                setRouletteResult(null);
-                setRouletteSpinning(false);
-              }, 0);
-            }}
             hiResBackground={hiResBackground}
           />
         )}
