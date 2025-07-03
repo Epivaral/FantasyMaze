@@ -1,4 +1,60 @@
 import React, { useEffect, useState, useRef } from 'react';
+// --- Lore Parsing and Asset Mapping ---
+import loreMd from './lore.md?raw'; // Vite raw import
+
+// Parse lore.md into a map: title -> { cursive, description }
+function parseLore(md: string): Record<string, { cursive: string, description: string }> {
+  const entries: Record<string, { cursive: string, description: string }> = {};
+  // Normalize line endings and remove leading/trailing whitespace
+  md = md.replace(/\r\n?/g, '\n').trim();
+  // Split on --- with optional whitespace before/after
+  const blocks = md.split(/\n\s*---+\s*\n/);
+  for (const block of blocks) {
+    const match = block.match(/^#\s+(.+?)\n([\s\S]*)/);
+    if (match) {
+      const title = match[1].trim();
+      const body = match[2].trim();
+      // Find all consecutive blockquote lines at the top
+      const lines = body.split(/\n/);
+      let cursiveLines: string[] = [];
+      let rest: string[] = [];
+      let inCursive = false;
+      for (let i = 0; i < lines.length; ++i) {
+        const line = lines[i];
+        if (line.trim().startsWith('>')) {
+          cursiveLines.push(line.replace(/^>\s?/, '').trim());
+          inCursive = true;
+        } else if (inCursive && line.trim() === '') {
+          // Allow blank line after blockquotes
+          continue;
+        } else {
+          rest = lines.slice(i);
+          break;
+        }
+      }
+      // Remove leading/trailing blank lines from rest
+      while (rest.length && rest[0].trim() === '') rest.shift();
+      while (rest.length && rest[rest.length-1].trim() === '') rest.pop();
+      entries[title] = {
+        cursive: cursiveLines.join('\n'),
+        description: rest.join('\n').trim(),
+      };
+    }
+  }
+  // Debug: log all parsed keys
+  console.log('LORE keys:', Object.keys(entries));
+  return entries;
+}
+
+const LORE = parseLore(loreMd);
+
+// Asset to lore title mapping
+const assetToLoreTitle: Record<string, string> = {
+  bones: 'Rustling Bones',
+  wolf: 'Night Prowler',
+  hp: 'Unmarked Vial',
+  player: 'The Woken Blades',
+};
 import './Maze.css';
 import playerImg from './assets/player.png';
 import bonesImg from './assets/bones.png';
@@ -25,6 +81,7 @@ const DIRS = [
 export type Cell = 0 | 1; // 0 = path, 1 = wall
 
 // Generate a random maze using recursive backtracking
+// Also allows for slightly more walls (less open cells)
 function generateMaze(size: number): Cell[][] {
   const maze: Cell[][] = Array.from({ length: size }, () => Array(size).fill(1));
   function shuffle<T>(arr: T[]): T[] {
@@ -65,7 +122,8 @@ function generateMaze(size: number): Cell[][] {
     else if (exitCol > 0) maze[exitRow][exitCol - 1] = 0;
   }
   // Remove some random walls to make the maze more open
-  let openCount = Math.floor(size * size * 0.25); // open up 25% more cells
+  // Make maze denser: only 15% open (was 20%)
+  let openCount = Math.floor(size * size * 0.15);
   while (openCount > 0) {
     const r = Math.floor(Math.random() * size);
     const c = Math.floor(Math.random() * size);
@@ -82,7 +140,36 @@ function manhattan(a: {row: number, col: number}, b: {row: number, col: number})
   return Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
 }
 
-// Generate random mob positions with distance constraints
+
+// Find the shortest path from (0,0) to (size-1,size-1) using BFS
+function findShortestPath(maze: Cell[][]): {row: number, col: number}[] {
+  const size = maze.length;
+  const queue: {row: number, col: number, path: {row: number, col: number}[]}[] = [
+    { row: 0, col: 0, path: [{ row: 0, col: 0 }] }
+  ];
+  const visited = Array.from({ length: size }, () => Array(size).fill(false));
+  visited[0][0] = true;
+  while (queue.length > 0) {
+    const { row, col, path } = queue.shift()!;
+    if (row === size - 1 && col === size - 1) return path;
+    for (const [dr, dc] of DIRS) {
+      const nr = row + dr;
+      const nc = col + dc;
+      if (
+        nr >= 0 && nr < size &&
+        nc >= 0 && nc < size &&
+        maze[nr][nc] === 0 &&
+        !visited[nr][nc]
+      ) {
+        visited[nr][nc] = true;
+        queue.push({ row: nr, col: nc, path: [...path, { row: nr, col: nc }] });
+      }
+    }
+  }
+  return [];
+}
+
+// Generate random mob positions with distance constraints, and force at least one mob on the shortest path
 function placeMobs(
   maze: Cell[][],
   player: Player,
@@ -99,6 +186,16 @@ function placeMobs(
       if (maze[r][c] === 0 && !(r === 0 && c === 0)) pathCells.push({row: r, col: c});
     }
   }
+  // Find shortest path and pick multiple cells (not start/end) for forced mobs
+  const path = findShortestPath(maze);
+  const pathChoices = path.filter(p => !(p.row === 0 && p.col === 0) && !(p.row === size-1 && p.col === size-1));
+  // Place 2-3 forced mobs on the path
+  let forcedMobs: {row: number, col: number}[] = [];
+  if (pathChoices.length > 0) {
+    const forcedCount = Math.min(3, Math.max(2, Math.floor(pathChoices.length / 5))); // 2 or 3 forced mobs
+    const shuffled = [...pathChoices].sort(() => Math.random() - 0.5);
+    forcedMobs = shuffled.slice(0, forcedCount);
+  }
   function pickPositions(count: number, avoid: {row: number, col: number}[]) {
     const chosen: {row: number, col: number}[] = [];
     let tries = 0;
@@ -107,7 +204,8 @@ function placeMobs(
       const pos = pathCells[idx];
       if (
         !chosen.some(p => manhattan(p, pos) < minDist) &&
-        !avoid.some(p => manhattan(p, pos) < minDist)
+        !avoid.some(p => manhattan(p, pos) < minDist) &&
+        (!forcedMobs.some(fm => fm.row === pos.row && fm.col === pos.col))
       ) {
         chosen.push(pos);
       }
@@ -117,8 +215,13 @@ function placeMobs(
   }
   const bonesCount = Math.floor(Math.random() * (maxBones - minBones + 1)) + minBones;
   const wolvesCount = Math.floor(Math.random() * (maxWolves - minWolves + 1)) + minWolves;
-  const bones = pickPositions(bonesCount, [player]);
-  const wolves = pickPositions(wolvesCount, [player, ...bones]);
+  let bones = pickPositions(bonesCount, [player]);
+  let wolves = pickPositions(wolvesCount, [player, ...bones]);
+  // Distribute forced mobs between bones and wolves randomly
+  forcedMobs.forEach(fm => {
+    if (Math.random() < 0.5) bones = [fm, ...bones];
+    else wolves = [fm, ...wolves];
+  });
   return { bones, wolves };
 }
 
@@ -132,7 +235,28 @@ type ModalType =
   | { type: 'hp', row: number, col: number }
   | null;
 
+type LoreModalState = null | { title: string, cursive: string, description: string, x: number, y: number };
 const Maze: React.FC = () => {
+  // Lore modal state: { title, cursive, description, x, y } | null
+  const [loreModal, setLoreModal] = useState<LoreModalState>(null);
+  // Track if lore modal is active and follow mouse
+  const loreMouseMoveRef = useRef<(e: MouseEvent) => void>();
+  // Lore modal close on key press
+  useEffect(() => {
+    if (!loreModal) return;
+    function handleLoreKey() {
+      setLoreModal(null);
+    }
+    function handleLoreMouse(e: MouseEvent) {
+      setLoreModal(modal => modal ? { ...modal, x: e.clientX, y: e.clientY } : null);
+    }
+    window.addEventListener('keydown', handleLoreKey);
+    window.addEventListener('mousemove', handleLoreMouse);
+    return () => {
+      window.removeEventListener('keydown', handleLoreKey);
+      window.removeEventListener('mousemove', handleLoreMouse);
+    };
+  }, [loreModal]);
   const [maze, setMaze] = useState<Cell[][]>(() => generateMaze(MAZE_SIZE));
   const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
   const [won, setWon] = useState(false);
@@ -413,11 +537,27 @@ const Maze: React.FC = () => {
                 // Player
                 if (rIdx === player.row && cIdx === player.col) {
                   return (
-                    <div className={className} key={cIdx}>
+                    <div
+                      className={className}
+                      key={cIdx}
+                      style={{ position: 'relative', zIndex: 10 }}
+                      onMouseEnter={e => {
+                        const lore = LORE[assetToLoreTitle['player']];
+                        setLoreModal({
+                          title: assetToLoreTitle['player'],
+                          cursive: lore?.cursive || '',
+                          description: lore?.description || '',
+                          x: (e as any).clientX || 0,
+                          y: (e as any).clientY || 0
+                        });
+                      }}
+                      onMouseLeave={() => setLoreModal(null)}
+                    >
                       <img
                         src={playerImg}
                         alt="player"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none', userSelect: 'none' }}
+                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
+                        draggable={false}
                       />
                     </div>
                   );
@@ -425,11 +565,28 @@ const Maze: React.FC = () => {
                 // Bones mob
                 if (mobs.bones.some(m => m.row === rIdx && m.col === cIdx)) {
                   return (
-                    <div className={className} key={cIdx}>
+                    <div
+                      className={className}
+                      key={cIdx}
+                      style={{ position: 'relative', zIndex: 10 }}
+                      onMouseEnter={e => {
+                        const lore = LORE[assetToLoreTitle['bones']];
+                        console.log('Bones lore:', assetToLoreTitle['bones'], lore, LORE);
+                        setLoreModal({
+                          title: assetToLoreTitle['bones'],
+                          cursive: lore?.cursive || '',
+                          description: lore?.description || '',
+                          x: (e as any).clientX || 0,
+                          y: (e as any).clientY || 0
+                        });
+                      }}
+                      onMouseLeave={() => setLoreModal(null)}
+                    >
                       <img
                         src={bonesImg}
                         alt="bones"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none', userSelect: 'none' }}
+                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
+                        draggable={false}
                       />
                     </div>
                   );
@@ -437,11 +594,28 @@ const Maze: React.FC = () => {
                 // Wolf mob
                 if (mobs.wolves.some(m => m.row === rIdx && m.col === cIdx)) {
                   return (
-                    <div className={className} key={cIdx}>
+                    <div
+                      className={className}
+                      key={cIdx}
+                      style={{ position: 'relative', zIndex: 10 }}
+                      onMouseEnter={e => {
+                        const lore = LORE[assetToLoreTitle['wolf']];
+                        console.log('Wolf lore:', assetToLoreTitle['wolf'], lore, LORE);
+                        setLoreModal({
+                          title: assetToLoreTitle['wolf'],
+                          cursive: lore?.cursive || '',
+                          description: lore?.description || '',
+                          x: (e as any).clientX || 0,
+                          y: (e as any).clientY || 0
+                        });
+                      }}
+                      onMouseLeave={() => setLoreModal(null)}
+                    >
                       <img
                         src={wolfImg}
                         alt="wolf"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none', userSelect: 'none' }}
+                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
+                        draggable={false}
                       />
                     </div>
                   );
@@ -449,22 +623,140 @@ const Maze: React.FC = () => {
                 // HP vial
                 if (hpVials.some(v => v.row === rIdx && v.col === cIdx)) {
                   return (
-                    <div className={className} key={cIdx}>
+                    <div
+                      className={className}
+                      key={cIdx}
+                      style={{ position: 'relative', zIndex: 10 }}
+                      onMouseEnter={e => {
+                        const lore = LORE[assetToLoreTitle['hp']];
+                        console.log('HP lore:', assetToLoreTitle['hp'], lore, LORE);
+                        setLoreModal({
+                          title: assetToLoreTitle['hp'],
+                          cursive: lore?.cursive || '',
+                          description: lore?.description || '',
+                          x: (e as any).clientX || 0,
+                          y: (e as any).clientY || 0
+                        });
+                      }}
+                      onMouseLeave={() => setLoreModal(null)}
+                    >
                       <img
                         src={hpImg}
                         alt="hp vial"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none', userSelect: 'none' }}
+                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
+                        draggable={false}
                       />
                     </div>
                   );
                 }
-                if (rIdx === 0 && cIdx === 0) className += ' maze-entrance';
-                if (rIdx === MAZE_SIZE - 1 && cIdx === MAZE_SIZE - 1) className += ' maze-exit';
-                return <div className={className} key={cIdx} />;
+                // Default: render wall or path cell
+                return <div className={className} key={cIdx}></div>;
+                return (
+                  <div className={className} key={cIdx} />
+                );
               })}
             </div>
           ))}
         </div>
+        {/* Lore Modal (global, not inside grid) */}
+        {loreModal && (
+          <div
+            className="maze-modal lore-modal"
+            style={{
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+              zIndex: 3000,
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              className="maze-modal-content lore-modal-content"
+              style={{
+                backgroundImage: `url(${hiResBackground})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                maxWidth: 480,
+                minWidth: 300,
+                color: '#e0e0e0',
+                boxShadow: '0 0 48px #000a',
+                position: 'fixed',
+                // Improved: keep modal inside viewport
+                left: Math.max(12, Math.min(window.innerWidth - 500, loreModal.x)),
+                top: Math.max(12, Math.min(window.innerHeight - 220, loreModal.y - 12)),
+                transform: 'translate(-10px, -100%)',
+                pointerEvents: 'none',
+                border: '2.5px solid #bfa76a',
+                borderRadius: 12,
+                padding: '1.1rem 1.5rem 1.1rem 0.8rem',
+                background: 'rgba(18,14,10,0.98)',
+                fontFamily: '"EB Garamond", "Georgia", "Garamond", serif',
+                fontSize: '0.98rem',
+                letterSpacing: '0.01em',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                gap: '0.8rem',
+                lineHeight: 1.22,
+              }}
+              tabIndex={-1}
+            >
+              {/* Asset image, left-aligned */}
+              <div style={{flex: '0 0 56px', marginRight: 6, marginTop: 2}}>
+                {(() => {
+                  let imgSrc = null;
+                  if (loreModal.title === 'Rustling Bones') imgSrc = hiResBonesImg;
+                  else if (loreModal.title === 'Night Prowler') imgSrc = hiResWolfImg;
+                  else if (loreModal.title === 'Unmarked Vial') imgSrc = hiResHpImg;
+                  else if (loreModal.title === 'The Woken Blades') imgSrc = hiResPlayerImg;
+                  return imgSrc ? (
+                    <img src={imgSrc} alt={loreModal.title} style={{width: 44, height: 44, objectFit: 'contain', filter: 'brightness(0.97) drop-shadow(0 0 6px #000a)'}} />
+                  ) : null;
+                })()}
+              </div>
+              {/* Text content, right-aligned */}
+              <div style={{flex: 1, minWidth: 0}}>
+                <div style={{
+                  fontFamily: '"Cinzel", "EB Garamond", serif',
+                  fontWeight: 700,
+                  fontSize: '1.08rem',
+                  color: '#e7d7a7',
+                  marginBottom: 6,
+                  textShadow: '0 2px 8px #000b',
+                  letterSpacing: '0.04em',
+                  textAlign: 'left',
+                  borderBottom: '1.2px solid #bfa76a',
+                  paddingBottom: 1,
+                  marginLeft: 2,
+                  marginRight: 6,
+                }}>{loreModal.title}</div>
+                {loreModal.cursive && (
+                  <div style={{
+                    fontStyle: 'italic',
+                    color: '#bfa76a',
+                    fontFamily: '"EB Garamond", "Georgia", "Garamond", serif',
+                    fontSize: '0.93rem',
+                    marginBottom: 6,
+                    textAlign: 'left',
+                    whiteSpace: 'pre-line',
+                    textShadow: '0 1px 4px #000a',
+                  }}>{loreModal.cursive}</div>
+                )}
+                {loreModal.description && (
+                  <div style={{
+                    whiteSpace: 'pre-line',
+                    color: '#e0e0e0',
+                    textShadow: '0 1px 4px #000a',
+                    fontSize: '12px',
+                    lineHeight: 1.22,
+                    marginBottom: 0,
+                    textAlign: 'left',
+                    fontFamily: '"EB Garamond", "Georgia", "Garamond", serif',
+                  }}>{loreModal.description}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {modal && modal.type !== 'hp' && (
           <div className="maze-modal vs-modal">
             <div className="maze-modal-content" style={{

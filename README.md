@@ -1,11 +1,14 @@
-# Fantastic Maze
 
-A simple React + TypeScript maze game built with Vite.
+# What Remains in Shadow
+
+A fantasy maze adventure game built with React + TypeScript and Vite.
 
 ## Features
 - 20x20 randomly generated maze
-- Entrance and exit at opposite corners
-- Player (white box/dot) can navigate the maze
+- Fantasy mobs and HP vials
+- Animated roulette modal for all encounters
+- Heart-based health bar
+- Win/lose modals and beautiful UI
 - Maze regenerates each time
 
 ## Getting Started
@@ -31,11 +34,7 @@ A simple React + TypeScript maze game built with Vite.
 - **Rustling Bones**: bones
 - **Night Prowler**: wolf
 
-## To Do
-- Add player movement
-- Implement maze generation
-- Add win condition
-- Add UI polish and assets (optional)
+
 
 ---
 
