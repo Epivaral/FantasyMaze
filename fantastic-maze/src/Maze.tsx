@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 // --- Lore Parsing and Asset Mapping ---
 import loreMd from './lore.md?raw'; // Vite raw import
@@ -571,7 +572,6 @@ const Maze: React.FC = () => {
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
                         const lore = LORE[assetToLoreTitle['bones']];
-                        console.log('Bones lore:', assetToLoreTitle['bones'], lore, LORE);
                         setLoreModal({
                           title: assetToLoreTitle['bones'],
                           cursive: lore?.cursive || '',
@@ -600,7 +600,6 @@ const Maze: React.FC = () => {
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
                         const lore = LORE[assetToLoreTitle['wolf']];
-                        console.log('Wolf lore:', assetToLoreTitle['wolf'], lore, LORE);
                         setLoreModal({
                           title: assetToLoreTitle['wolf'],
                           cursive: lore?.cursive || '',
@@ -629,7 +628,6 @@ const Maze: React.FC = () => {
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
                         const lore = LORE[assetToLoreTitle['hp']];
-                        console.log('HP lore:', assetToLoreTitle['hp'], lore, LORE);
                         setLoreModal({
                           title: assetToLoreTitle['hp'],
                           cursive: lore?.cursive || '',
@@ -651,9 +649,6 @@ const Maze: React.FC = () => {
                 }
                 // Default: render wall or path cell
                 return <div className={className} key={cIdx}></div>;
-                return (
-                  <div className={className} key={cIdx} />
-                );
               })}
             </div>
           ))}
