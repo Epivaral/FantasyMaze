@@ -1,5 +1,90 @@
+// --- Generic VS Modal (parameterized) ---
+// Usage: <GenericVsModal ...props />
+
+interface VsOption {
+  label: string;
+  action: string;
+  amount?: number;
+  weight?: number;
+}
+
+interface GenericVsModalProps {
+  title: string;
+  playerImg: string;
+  mobImg: string;
+  mobName: string;
+  options: VsOption[];
+  spinning: boolean;
+  selectedIndex: number | null;
+  onStop: () => void;
+  onApply: (option: VsOption) => void;
+  hiResBackground: string;
+}
+
+export const GenericVsModal: React.FC<GenericVsModalProps> = ({
+  title,
+  playerImg,
+  mobImg,
+  mobName,
+  options,
+  spinning,
+  selectedIndex,
+  onStop,
+  onApply,
+  hiResBackground,
+}) => {
+  return (
+    <div className="maze-modal vs-modal">
+      <div className="maze-modal-content" style={{
+        backgroundImage: `url(${hiResBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}>
+        <div className="versus-title">{title}</div>
+        <div className="versus-row">
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+            <img src={playerImg} alt="player" className="versus-img" />
+            <span className="asset-name">The Woken Blades</span>
+          </div>
+          <span className="versus-vs">VS</span>
+          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+            <img src={mobImg} alt={mobName} className="versus-img" />
+            <span className="asset-name">{mobName}</span>
+          </div>
+        </div>
+        <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '2rem'}}>
+          {options.map((opt, idx) => (
+            <div key={opt.label} style={{
+              border: selectedIndex === idx ? '4px solid gold' : '2px solid #888',
+              borderRadius: 12,
+              padding: '1rem 2.5rem',
+              background: '#181818',
+              color: opt.amount && opt.amount < 0 ? '#f00' : '#ff0',
+              fontWeight: 'bold',
+              fontSize: '2rem',
+              boxShadow: selectedIndex === idx ? '0 0 16px gold' : 'none',
+              opacity: spinning && selectedIndex !== idx ? 0.5 : 1,
+              transition: 'all 0.2s',
+            }}>
+              {opt.label}
+            </div>
+          ))}
+        </div>
+        <div className="versus-instructions">
+          {spinning
+            ? 'Press SPACE to stop the roulette!'
+            : (selectedIndex !== null && options[selectedIndex])
+              ? (<><br/>Result: {options[selectedIndex].label}<br/>Press SPACE to continue.</>)
+              : 'Choose your fate!'}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 import React, { useEffect, useState, useRef } from 'react';
+import { executeBattleAction } from './BattleActions';
+import { createGameStateHandlers } from './GameActionHandlers';
 // --- Lore Parsing and Asset Mapping ---
 import loreMd from './lore.md?raw'; // Vite raw import
 
@@ -308,6 +393,25 @@ const Maze: React.FC = () => {
     setHealth(100);
     setEndModal(null);
   }, [maze]);
+
+  // --- Battle Action System Integration ---
+  // Example: create handlers for the current state
+  const gameStateHandlers = createGameStateHandlers({
+    health,
+    setHealth,
+    setEndModal,
+    setMobs,
+    setMaze,
+    generateMaze,
+    player,
+    setPlayer,
+    mobs,
+    MAZE_SIZE,
+    // setRevealExitTurns, setLockExit: add these if you implement those features
+  });
+
+  // Example usage: call this to apply an action
+  // executeBattleAction({ type: 'hp_gain', value: 10 }, gameStateHandlers);
 
   // HP Vial Roulette Logic
   // Mob and HP vial roulette logic (with animation for both, using options array for mobs)
