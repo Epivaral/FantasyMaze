@@ -2,6 +2,8 @@ import keyImg from './assets/key.png';
 import hiResKeyImg from './assets/hi-res/key.png';
 // Key modal state
 type KeyModalState = null | { x: number, y: number };
+type KeyGateState = null | { x: number, y: number };
+
 import fogImg from './assets/fog.png';
 
 
@@ -20,8 +22,6 @@ interface GenericVsModalProps {
   options: VsOption[];
   spinning: boolean;
   selectedIndex: number | null;
-  // onStop: () => void; // Unused prop
-  // onApply: (option: VsOption) => void; // Unused prop
   hiResBackground: string;
 }
 
@@ -376,55 +376,35 @@ const Maze: React.FC = () => {
   const [keyPos, setKeyPos] = useState<{row: number, col: number} | null>(null);
   const [hasKey, setHasKey] = useState(false);
   const [keyModal, setKeyModal] = useState<KeyModalState>(null);
+  const [sealedGateModal, setSealedGateModal] = useState<KeyGateState>(null);
   // Gradient fog: 0–2 distance = 0, 3=0.2, 4=0.4, 5=0.6, 6=0.8, >6=0.9
-  const [fog, setFog] = useState<number[][]>(() => {
+  function getFogArray(centerRow: number, centerCol: number) {
     const arr = Array.from({ length: MAZE_SIZE }, () => Array(MAZE_SIZE).fill(0.9));
-    const px = 0, py = 0;
-    for (let dy = -8; dy <= 8; dy++) {
-      for (let dx = -8; dx <= 8; dx++) {
+    for (let dy = -5; dy <= 5; dy++) {
+      for (let dx = -5; dx <= 5; dx++) {
         const dist = Math.max(Math.abs(dx), Math.abs(dy));
-        const x = px + dx;
-        const y = py + dy;
+        const x = centerCol + dx;
+        const y = centerRow + dy;
         if (x >= 0 && x < MAZE_SIZE && y >= 0 && y < MAZE_SIZE) {
           let op = 0.9;
           if (dist <= 2) op = 0;
           else if (dist === 3) op = 0.2;
-          else if (dist === 4) op = 0.4;
-          else if (dist === 5) op = 0.6;
-          else if (dist === 6) op = 0.8;
+          else if (dist === 4) op = 0.5;
+          else if (dist === 5) op = 0.8;
           arr[y][x] = op;
         }
       }
     }
     return arr;
-  });
+  }
+  const [fog, setFog] = useState<number[][]>(() => getFogArray(0, 0));
   // Reveal fog area around player whenever player moves
   useEffect(() => {
-    setFog(_prev => {
-      const arr = Array.from({ length: MAZE_SIZE }, () => Array(MAZE_SIZE).fill(0.9));
-      for (let dy = -8; dy <= 8; dy++) {
-        for (let dx = -8; dx <= 8; dx++) {
-          const dist = Math.max(Math.abs(dx), Math.abs(dy));
-          const x = player.col + dx;
-          const y = player.row + dy;
-          if (x >= 0 && x < MAZE_SIZE && y >= 0 && y < MAZE_SIZE) {
-            let op = 0.9;
-            if (dist <= 2) op = 0;
-            else if (dist === 3) op = 0.2;
-            else if (dist === 4) op = 0.4;
-            else if (dist === 5) op = 0.6;
-            else if (dist === 6) op = 0.8;
-            arr[y][x] = op;
-          }
-        }
-      }
-      return arr;
-    });
+    setFog(getFogArray(player.row, player.col));
   }, [player]);
   // Lore modal state: { title, cursive, description, x, y } | null
   const [loreModal, setLoreModal] = useState<LoreModalState>(null);
   // Track if lore modal is active and follow mouse
-  // Removed unused loreMouseMoveRef to fix TS6133 warning
   // Lore modal close on key press
   useEffect(() => {
     if (!loreModal) return;
@@ -454,7 +434,7 @@ const Maze: React.FC = () => {
   const [health, setHealth] = useState(100);
   const [endModal, setEndModal] = useState<null | 'win' | 'lose'>(null);
   // Exit modal for sealed gate (no key)
-  const [sealedGateModal, setSealedGateModal] = useState(false);
+  
 
   // Place mobs when maze or player resets
   useEffect(() => {
@@ -507,6 +487,7 @@ const Maze: React.FC = () => {
     setKeyPos(keyCell);
     setHasKey(false);
     setKeyModal(null);
+    setSealedGateModal(null);
     setHealth(100);
     setEndModal(null);
   }, [maze]);
@@ -519,6 +500,16 @@ const Maze: React.FC = () => {
     window.addEventListener('keydown', handleKeyModalKey);
     return () => window.removeEventListener('keydown', handleKeyModalKey);
   }, [keyModal]);
+
+  // Close sealed gate modal on spacebar
+  useEffect(() => {
+    if (!sealedGateModal) return;
+    function handleSealedGateKey(e: KeyboardEvent) {
+      if (e.key === ' ') setSealedGateModal(null);
+    }
+    window.addEventListener('keydown', handleSealedGateKey);
+    return () => window.removeEventListener('keydown', handleSealedGateKey);
+  }, [sealedGateModal]);
 
   // --- Battle Action System Integration ---
   // Example: create handlers for the current state
@@ -733,7 +724,7 @@ const Maze: React.FC = () => {
       }
       if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1) {
         if (!hasKeyCurrent) {
-          setSealedGateModal(true);
+          setSealedGateModal({ x: row, y: col });
           return;
         } else {
           setWon(true);
@@ -752,51 +743,8 @@ const Maze: React.FC = () => {
     setMaze(generateMaze(MAZE_SIZE));
     setPlayer({ row: 0, col: 0 });
     setWon(false);
-    setSealedGateModal(false);
+    
   };
-      {/* Sealed Gate Modal (if player tries to exit without key) */}
-      {sealedGateModal && (
-        <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
-          <div className="maze-modal-content" style={{
-            backgroundImage: `url(${hiResBackground})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            color: '#fff',
-            textAlign: 'center',
-            minWidth: 320,
-            minHeight: 220,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.2rem',
-            fontFamily: 'EB Garamond, serif',
-            border: '2.5px solid #bfa76a',
-            borderRadius: 12,
-            boxShadow: '0 0 48px #000a',
-            padding: '2.5rem 2.5rem 2.5rem 2.5rem',
-          }}>
-            <img src={hiResDoorImg} alt="Sealed Gate" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
-            <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>The Sealed Gate</div>
-            <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
-              The gate opens to those who uncover the key...<br />or survive the one who holds it.
-            </div>
-            <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
-          </div>
-        </div>
-      )}
-  // Close sealed gate modal on spacebar
-  useEffect(() => {
-    if (!sealedGateModal) return;
-    function handleSealedGateKey(e: KeyboardEvent) {
-      if (e.key === ' ') setSealedGateModal(false);
-    }
-    window.addEventListener('keydown', handleSealedGateKey);
-    return () => window.removeEventListener('keydown', handleSealedGateKey);
-  }, [sealedGateModal]);
-
-
-
 
   return (
     <div className="maze-layout">
@@ -1061,6 +1009,37 @@ const Maze: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Gate Modal (moved outside grid for reliability) */}
+        {sealedGateModal && (
+        <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
+          <div className="maze-modal-content" style={{
+            backgroundImage: `url(${hiResBackground})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            color: '#fff',
+            textAlign: 'center',
+            minWidth: 320,
+            minHeight: 220,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            fontFamily: 'EB Garamond, serif',
+            border: '2.5px solid #bfa76a',
+            borderRadius: 12,
+            boxShadow: '0 0 48px #000a',
+            padding: '2.5rem 2.5rem 2.5rem 2.5rem',
+          }}>
+            <img src={hiResDoorImg} alt="Sealed Gate" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
+            <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>The Sealed Gate</div>
+            <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
+              The gate opens to those who uncover the key...<br />or survive the one who holds it.
+            </div>
+            <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
+          </div>
+        </div>
+      )}
         {/* Lore Modal (global, not inside grid) */}
         {loreModal && (
           <div
@@ -1198,12 +1177,24 @@ const Maze: React.FC = () => {
       </div>
       <div className="maze-sidebar maze-sidebar-right">
         <div className="maze-instructions-box">
-          <h2>Instructions</h2>
+          <h2>What remains on Shadows</h2>
+          <p style={{ 
+            color: '#D4AF37', 
+            fontStyle: 'italic', 
+            marginBottom: '1em',
+            textAlign: 'right',
+          }}>
+            The maze shifts, the dark listens, and only one path remembers your name.<br/>
+            <b>- The Unspoken Rules</b>
+          </p>
           <ul>
-            <li>Use arrow keys to move the player</li>
-            <li>Enter a mob cell to battle.</li>
-            <li>Press SPACE to defeat a mob and continue.</li>
-            <li>Reach the red exit to win!</li>
+            <li>Let the <strong>arrow keys</strong> sigils guide your steps through the foggy halls.</li>
+            <br/>
+            <li>Should a threat block your path, step into it! There is no other way.</li>
+            <br/>
+            <li>Your rival will not hesitate. You shouldn’t either. Strike with <strong>SPACE</strong>.</li>
+            <br/>
+            <li>The crimson gate marks the end. Few reach it. Fewer leave through it.</li>
           </ul>
         </div>
       </div>

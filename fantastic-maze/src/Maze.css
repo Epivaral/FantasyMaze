@@ -40,11 +40,12 @@
 }
 
 .maze-container {
-  margin-top: 2.5rem;
+  margin-top: 2rem;
   margin-bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 10px;
 }
 
 .regenerate-btn {
@@ -238,20 +239,22 @@
   box-sizing: border-box;
 }
 
-.maze-sidebar-left {
-  border-right: 2px solid #333;
+.maze-sidebar.maze-sidebar-right { 
+  margin-top: 2.0rem;
+  width: 25%;
 }
 
-.maze-sidebar-right {
-  border-left: 2px solid #333;
+.maze-sidebar.maze-sidebar-left { 
+  margin-top: 2.0rem;
+  width: 25%;
 }
 
 .player-stats-box {
   background: #232323;
   color: #fff;
   border-radius: 12px;
-  padding: 1.5rem 1rem;
-  width: 100%;
+  padding: 5px;
+  width: 60%;
   box-shadow: 0 0 12px #0008;
 }
 .player-stats-box h2 {
@@ -273,21 +276,13 @@
   background: #232323;
   color: #fff;
   border-radius: 12px;
-  padding: 1.5rem 1rem;
-  width: 100%;
+  padding: 30px;
+  width: 75%;
   box-shadow: 0 0 12px #0008;
+  text-align: left;
 }
 .maze-instructions-box h2 {
   font-size: 1.3rem;
   margin-bottom: 1rem;
   color: #ff0;
-}
-.maze-instructions-box ul {
-  list-style: disc inside;
-  padding-left: 1rem;
-  margin: 0;
-}
-.maze-instructions-box li {
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
 }
