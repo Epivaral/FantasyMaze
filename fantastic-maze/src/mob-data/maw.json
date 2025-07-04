@@ -1,8 +1,8 @@
 {
   "min": 0,
   "max": 3,
-  "image": "assets/maw.png",
-  "hiResImage": "assets/hi-res/maw.png",
+  "image": "./src/assets/maw.png",
+  "hiResImage": "./src/assets/hi-res/maw.png",
   "outcomes": [
     { "label": "Teleport", "action": "teleport", "weight": 0.20 },
     { "label": "Devoured (Game Over)", "action": "lose", "weight": 0.10 },

@@ -135,27 +135,69 @@ const LORE = parseLore(loreMd);
 
 // Asset to lore title mapping
 const assetToLoreTitle: Record<string, string> = {
-  bones: 'Rustling Bones',
-  wolf: 'Night Prowler',
-  hp: 'Unmarked Vial',
-  player: 'The Woken Blades',
+bones: 'Rustling Bones',
+wolf: 'Night Prowler',
+hp: 'Unmarked Vial',
+player: 'The Woken Blades',
+maw: 'The Maw Below', // Add mapping for maw
 };
 import './Maze.css';
+
 import playerImg from './assets/player.png';
-import bonesImg from './assets/bones.png';
-import wolfImg from './assets/wolf.png';
 import hiResPlayerImg from './assets/hi-res/player.png';
-import hiResBonesImg from './assets/hi-res/bones.png';
-import hiResWolfImg from './assets/hi-res/wolf.png';
+import hiResBackground from './assets/hi-res/background.png';
 import wolfData from './mob-data/wolf.json';
 import bonesData from './mob-data/bones.json';
 import mawData from './mob-data/maw.json';
 import hpData from './mob-data/hp.json';
-import hiResMawImg from './assets/hi-res/maw.png';
 import { renderHearts } from './HeartBar';
-import hpImg from './assets/hp.png';
-import hiResHpImg from './assets/hi-res/hp.png';
-import hiResBackground from './assets/hi-res/background.png';
+
+// Utility to resolve asset paths from JSON (for Vite)
+function resolveAsset(path: string): string {
+  // If path starts with 'assets/', prepend './' for Vite static import
+  if (path.startsWith('assets/')) {
+    const resolved = new URL(`./${path}`, import.meta.url).href;
+    // Debug: print resolved asset path
+    if (typeof window !== 'undefined') {
+      // Print to browser console
+      console.debug('[resolveAsset]', path, '=>', resolved);
+    }
+    return resolved;
+  }
+  // Debug: print non-assets path
+  if (typeof window !== 'undefined') {
+    console.debug('[resolveAsset]', path, '=> (unchanged)');
+  }
+  return path;
+}
+
+// Map mob type to JSON data and images (all from JSON except player)
+const MOB_CONFIG: Record<string, { data: any; img: string; hiResImg: string; name: string }> = {
+  wolf: {
+    data: wolfData,
+    img: resolveAsset(wolfData.image),
+    hiResImg: resolveAsset(wolfData.hiResImage),
+    name: 'Night Prowler',
+  },
+  bones: {
+    data: bonesData,
+    img: resolveAsset(bonesData.image),
+    hiResImg: resolveAsset(bonesData.hiResImage),
+    name: 'Rustling Bones',
+  },
+  maw: {
+    data: mawData,
+    img: resolveAsset(mawData.image),
+    hiResImg: resolveAsset(mawData.hiResImage),
+    name: 'The Maw',
+  },
+  hp: {
+    data: hpData,
+    img: resolveAsset(hpData.image),
+    hiResImg: resolveAsset(hpData.hiResImage),
+    name: 'HP Vial',
+  },
+};
 
 
 // --- Generic Modal State ---
@@ -169,13 +211,7 @@ type ModalState = null | {
   options: VsOption[];
 };
 
-// Map mob type to JSON data and images
-const MOB_CONFIG: Record<string, { data: any; img: string; hiResImg: string; name: string }> = {
-  wolf: { data: wolfData, img: wolfImg, hiResImg: hiResWolfImg, name: 'Night Prowler' },
-  bones: { data: bonesData, img: bonesImg, hiResImg: hiResBonesImg, name: 'Rustling Bones' },
-  maw: { data: mawData, img: hiResMawImg, hiResImg: hiResMawImg, name: 'The Maw' },
-  hp: { data: hpData, img: hpImg, hiResImg: hiResHpImg, name: 'HP Vial' },
-};
+// (Removed duplicate MOB_CONFIG definition; now defined above using JSON-driven assets)
 
 const MAZE_SIZE = 20;
 
@@ -577,14 +613,20 @@ const Maze: React.FC = () => {
             executeBattleAction(battleAction, gameStateHandlers);
             // Remove mob/vial from map if needed
             if (modal.type === 'wolf' || modal.type === 'bones' || modal.type === 'maw') {
-              setMobs(prev => {
-                const { type, row, col } = modal;
-                return {
-                  bones: type === 'bones' ? prev.bones.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.bones,
-                  wolves: type === 'wolf' ? prev.wolves.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.wolves,
-                  maws: type === 'maw' ? prev.maws.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.maws,
-                };
-              });
+              // Use the global defeat handler for all mob types
+              executeBattleAction({ type: 'defeat' }, gameStateHandlers);
+              // Use teleportPlayer from gameStateHandlers for any mob with teleport action
+              if (selectedOpt.action === 'teleport' && typeof gameStateHandlers.teleportPlayer === 'function') {
+                setModal(null); // Close modal before teleporting to avoid stuck state
+                setTimeout(() => {
+                  gameStateHandlers.teleportPlayer();
+                }, 0);
+                setTimeout(() => {
+                  setRouletteResult(null);
+                  setRouletteSpinning(false);
+                }, 0);
+                return;
+              }
             } else if (modal.type === 'hp') {
               setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
             }
@@ -742,7 +784,7 @@ const Maze: React.FC = () => {
                       onMouseLeave={() => setLoreModal(null)}
                     >
                       <img
-                        src={bonesImg}
+                        src={MOB_CONFIG['bones'].img}
                         alt="bones"
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
@@ -772,7 +814,7 @@ const Maze: React.FC = () => {
                       onMouseLeave={() => setLoreModal(null)}
                     >
                       <img
-                        src={wolfImg}
+                        src={MOB_CONFIG['wolf'].img}
                         alt="wolf"
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
@@ -790,6 +832,7 @@ const Maze: React.FC = () => {
                       style={{ position: 'relative', zIndex: 10 }}
                       onMouseEnter={e => {
                         if (isFogged) return;
+                        // Use correct lore for The Maw Below
                         const lore = LORE[assetToLoreTitle['maw']];
                         setLoreModal({
                           title: assetToLoreTitle['maw'],
@@ -802,7 +845,7 @@ const Maze: React.FC = () => {
                       onMouseLeave={() => setLoreModal(null)}
                     >
                       <img
-                        src={hiResMawImg}
+                        src={MOB_CONFIG['maw'].img}
                         alt="maw"
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
@@ -832,7 +875,7 @@ const Maze: React.FC = () => {
                       onMouseLeave={() => setLoreModal(null)}
                     >
                       <img
-                        src={hpImg}
+                        src={MOB_CONFIG['hp'].img}
                         alt="hp vial"
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
@@ -897,10 +940,12 @@ const Maze: React.FC = () => {
               <div style={{flex: '0 0 56px', marginRight: 6, marginTop: 2}}>
                 {(() => {
                   let imgSrc = null;
-                  if (loreModal.title === 'Rustling Bones') imgSrc = hiResBonesImg;
-                  else if (loreModal.title === 'Night Prowler') imgSrc = hiResWolfImg;
-                  else if (loreModal.title === 'Unmarked Vial') imgSrc = hiResHpImg;
-                  else if (loreModal.title === 'The Woken Blades') imgSrc = hiResPlayerImg;
+                  // Use MOB_CONFIG to get hi-res image for any mob
+                  if (loreModal.title === assetToLoreTitle['bones']) imgSrc = MOB_CONFIG['bones'].hiResImg;
+                  else if (loreModal.title === assetToLoreTitle['wolf']) imgSrc = MOB_CONFIG['wolf'].hiResImg;
+                  else if (loreModal.title === assetToLoreTitle['maw']) imgSrc = MOB_CONFIG['maw'].hiResImg;
+                  else if (loreModal.title === assetToLoreTitle['hp']) imgSrc = MOB_CONFIG['hp'].hiResImg;
+                  else if (loreModal.title === assetToLoreTitle['player']) imgSrc = hiResPlayerImg;
                   return imgSrc ? (
                     <img src={imgSrc} alt={loreModal.title} style={{width: 44, height: 44, objectFit: 'contain', filter: 'brightness(0.97) drop-shadow(0 0 6px #000a)'}} />
                   ) : null;
