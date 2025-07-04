@@ -581,15 +581,37 @@ const Maze: React.FC = () => {
             const { action, amount } = selectedOpt;
             let battleAction: any = { type: action };
             if (typeof amount !== 'undefined') battleAction.value = amount;
-            executeBattleAction(battleAction, gameStateHandlers);
-            // Remove mob/vial from map if needed
+            // Special handling for teleport
+            if (action === 'teleport') {
+              // Find all empty cells except start and exit
+              const maze = mazeRef.current;
+              const emptyCells: {row: number, col: number}[] = [];
+              for (let r = 0; r < MAZE_SIZE; r++) {
+                for (let c = 0; c < MAZE_SIZE; c++) {
+                  if (maze[r][c] === 0 && !(r === 0 && c === 0) && !(r === MAZE_SIZE-1 && c === MAZE_SIZE-1)) {
+                    emptyCells.push({row: r, col: c});
+                  }
+                }
+              }
+              if (emptyCells.length > 0) {
+                const idx = Math.floor(Math.random() * emptyCells.length);
+                setPlayer(emptyCells[idx]);
+              }
+            } else {
+              executeBattleAction(battleAction, gameStateHandlers);
+            }
+            // Always remove mob after any outcome
             if (modal.type === 'wolf' || modal.type === 'bones' || modal.type === 'maw') {
               setMobs(prev => {
                 const { type, row, col } = modal;
+                // Always default to empty arrays if missing
+                const bones = Array.isArray(prev.bones) ? prev.bones : [];
+                const wolves = Array.isArray(prev.wolves) ? prev.wolves : [];
+                const maws = Array.isArray(prev.maws) ? prev.maws : [];
                 return {
-                  bones: type === 'bones' ? prev.bones.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.bones,
-                  wolves: type === 'wolf' ? prev.wolves.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.wolves,
-                  maws: type === 'maw' ? prev.maws.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.maws,
+                  bones: type === 'bones' ? bones.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : bones,
+                  wolves: type === 'wolf' ? wolves.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : wolves,
+                  maws: type === 'maw' ? maws.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : maws,
                 };
               });
             } else if (modal.type === 'hp') {
