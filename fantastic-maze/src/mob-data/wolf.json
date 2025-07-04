@@ -1,8 +1,8 @@
 {
   "min": 3,
   "max": 5,
-  "image": "./src/assets/wolf.png",
-  "hiResImage": "./src/assets/hi-res/wolf.png",
+  "image": "assets/wolf.png",
+  "hiResImage": "assets/hi-res/wolf.png",
   "outcomes": [
     { "label": "Defeat", "action": "defeat", "weight": 0.20 },
     { "label": "Lose 10 HP", "action": "hp_gain", "amount": -10, "weight": 0.20 },

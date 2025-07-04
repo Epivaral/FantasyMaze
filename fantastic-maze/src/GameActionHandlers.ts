@@ -54,13 +54,12 @@ export function createGameStateHandlers(params: {
       }
     },
     defeatMob: () => {
-      // Remove mob at player location (works for bones, wolves, maws)
+      // Remove mob at player location
       params.setMobs(prev => {
         const { row, col } = params.player;
         return {
-          bones: prev.bones?.filter((m: any) => !(m.row === row && m.col === col)) || [],
-          wolves: prev.wolves?.filter((m: any) => !(m.row === row && m.col === col)) || [],
-          maws: prev.maws?.filter((m: any) => !(m.row === row && m.col === col)) || [],
+          bones: prev.bones.filter((m: any) => !(m.row === row && m.col === col)),
+          wolves: prev.wolves.filter((m: any) => !(m.row === row && m.col === col)),
         };
       });
     },
