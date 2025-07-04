@@ -1,3 +1,7 @@
+import keyImg from './assets/key.png';
+import hiResKeyImg from './assets/hi-res/key.png';
+// Key modal state
+type KeyModalState = null | { x: number, y: number };
 import fogImg from './assets/fog.png';
 
 
@@ -148,6 +152,7 @@ const assetToLoreTitle: Record<string, string> = {
   wolf: 'Night Prowler',
   hp: 'Unmarked Vial',
   player: 'The Woken Blades',
+  maw: 'The Maw Below',
 };
 import './Maze.css';
 import playerImg from './assets/player.png';
@@ -365,6 +370,9 @@ const Maze: React.FC = () => {
   // --- Fog of War State ---
   // Move player state above fog state to avoid use-before-declare
   const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
+  const [keyPos, setKeyPos] = useState<{row: number, col: number} | null>(null);
+  const [hasKey, setHasKey] = useState(false);
+  const [keyModal, setKeyModal] = useState<KeyModalState>(null);
   // Gradient fog: 0–2 distance = 0, 3=0.2, 4=0.4, 5=0.6, 6=0.8, >6=0.9
   const [fog, setFog] = useState<number[][]>(() => {
     const arr = Array.from({ length: MAZE_SIZE }, () => Array(MAZE_SIZE).fill(0.9));
@@ -475,11 +483,37 @@ const Maze: React.FC = () => {
       }
       tries++;
     }
+    // Place key in a random empty cell (not start/exit, not mob, not vial)
+    const mobCells = [
+      ...mobsPlaced.bones,
+      ...mobsPlaced.wolves,
+      ...(mobsPlaced.maws || []),
+    ];
+    const keyCandidates = pathCells.filter(cell =>
+      !vials.some(v => v.row === cell.row && v.col === cell.col) &&
+      !mobCells.some(m => m.row === cell.row && m.col === cell.col)
+    );
+    let keyCell: {row: number, col: number} | null = null;
+    if (keyCandidates.length > 0) {
+      keyCell = keyCandidates[Math.floor(Math.random() * keyCandidates.length)];
+    }
     setMobs(mobsPlaced);
     setHpVials(vials);
+    setKeyPos(keyCell);
+    setHasKey(false);
+    setKeyModal(null);
     setHealth(100);
     setEndModal(null);
   }, [maze]);
+  // Key modal close on spacebar
+  useEffect(() => {
+    if (!keyModal) return;
+    function handleKeyModalKey(e: KeyboardEvent) {
+      if (e.key === ' ') setKeyModal(null);
+    }
+    window.addEventListener('keydown', handleKeyModalKey);
+    return () => window.removeEventListener('keydown', handleKeyModalKey);
+  }, [keyModal]);
 
   // --- Battle Action System Integration ---
   // Example: create handlers for the current state
@@ -667,6 +701,14 @@ const Maze: React.FC = () => {
           setRouletteSpinning(true);
           return;
         }
+      }
+      // Key item
+      if (keyPos && row === keyPos.row && col === keyPos.col && !hasKey) {
+        setHasKey(true);
+        setKeyModal({ x: row, y: col });
+        setKeyPos(null);
+        setPlayer({ row, col });
+        return;
       }
       // HP vial
       const hpVial = hpVials.find(v => v.row === row && v.col === col);
@@ -879,6 +921,24 @@ const Maze: React.FC = () => {
                     </div>
                   );
                 }
+                // Key cell
+                if (keyPos && rIdx === keyPos.row && cIdx === keyPos.col) {
+                  return (
+                    <div
+                      className={className}
+                      key={cIdx}
+                      style={{ position: 'relative', zIndex: 10 }}
+                    >
+                      <img
+                        src={keyImg}
+                        alt="key"
+                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer', filter: 'brightness(1.2) drop-shadow(0 0 8px gold)' }}
+                        draggable={false}
+                      />
+                      {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
+                    </div>
+                  );
+                }
                 // Exit cell: add green glow
                 const isExit = rIdx === MAZE_SIZE - 1 && cIdx === MAZE_SIZE - 1;
                 return (
@@ -895,6 +955,37 @@ const Maze: React.FC = () => {
                     {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                   </div>
                 );
+      {/* Key Modal */}
+      {keyModal && (
+        <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
+          <div className="maze-modal-content" style={{
+            backgroundImage: `url(${hiResKeyImg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            color: '#fff',
+            textAlign: 'center',
+            minWidth: 320,
+            minHeight: 220,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            fontFamily: 'EB Garamond, serif',
+            border: '2.5px solid #bfa76a',
+            borderRadius: 12,
+            boxShadow: '0 0 48px #000a',
+            padding: '2.5rem 2.5rem 2.5rem 2.5rem',
+          }}>
+            <img src={hiResKeyImg} alt="Key" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
+            <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>You found the Key</div>
+            <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
+              One of two now rests in your hands, you can leave now
+            </div>
+            <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
+          </div>
+        </div>
+      )}
               })}
             </div>
           ))}
@@ -949,6 +1040,7 @@ const Maze: React.FC = () => {
                   else if (loreModal.title === 'Night Prowler') imgSrc = hiResWolfImg;
                   else if (loreModal.title === 'Unmarked Vial') imgSrc = hiResHpImg;
                   else if (loreModal.title === 'The Woken Blades') imgSrc = hiResPlayerImg;
+                  else if (loreModal.title === 'The Maw Below') imgSrc = hiResMawImg;
                   return imgSrc ? (
                     <img src={imgSrc} alt={loreModal.title} style={{width: 44, height: 44, objectFit: 'contain', filter: 'brightness(0.97) drop-shadow(0 0 6px #000a)'}} />
                   ) : null;
