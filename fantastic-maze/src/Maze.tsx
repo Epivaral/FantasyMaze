@@ -157,9 +157,11 @@ const assetToLoreTitle: Record<string, string> = {
 };
 import './Maze.css';
 import playerImg from './assets/player.png';
+import doorImg from './assets/door.png';
 import bonesImg from './assets/bones.png';
 import wolfImg from './assets/wolf.png';
 import hiResPlayerImg from './assets/hi-res/player.png';
+import hiResDoorImg from './assets/hi-res/door.png';
 import hiResBonesImg from './assets/hi-res/bones.png';
 import hiResWolfImg from './assets/hi-res/wolf.png';
 import wolfData from './mob-data/wolf.json';
@@ -451,6 +453,8 @@ const Maze: React.FC = () => {
   // Remove rouletteApplied, use modal presence as the only trigger
   const [health, setHealth] = useState(100);
   const [endModal, setEndModal] = useState<null | 'win' | 'lose'>(null);
+  // Exit modal for sealed gate (no key)
+  const [sealedGateModal, setSealedGateModal] = useState(false);
 
   // Place mobs when maze or player resets
   useEffect(() => {
@@ -728,8 +732,13 @@ const Maze: React.FC = () => {
         return;
       }
       if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1) {
-        setWon(true);
-        setEndModal('win');
+        if (!hasKeyCurrent) {
+          setSealedGateModal(true);
+          return;
+        } else {
+          setWon(true);
+          setEndModal('win');
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -743,7 +752,48 @@ const Maze: React.FC = () => {
     setMaze(generateMaze(MAZE_SIZE));
     setPlayer({ row: 0, col: 0 });
     setWon(false);
+    setSealedGateModal(false);
   };
+      {/* Sealed Gate Modal (if player tries to exit without key) */}
+      {sealedGateModal && (
+        <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
+          <div className="maze-modal-content" style={{
+            backgroundImage: `url(${hiResBackground})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            color: '#fff',
+            textAlign: 'center',
+            minWidth: 320,
+            minHeight: 220,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            fontFamily: 'EB Garamond, serif',
+            border: '2.5px solid #bfa76a',
+            borderRadius: 12,
+            boxShadow: '0 0 48px #000a',
+            padding: '2.5rem 2.5rem 2.5rem 2.5rem',
+          }}>
+            <img src={hiResDoorImg} alt="Sealed Gate" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
+            <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>The Sealed Gate</div>
+            <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
+              The gate opens to those who uncover the key...<br />or survive the one who holds it.
+            </div>
+            <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
+          </div>
+        </div>
+      )}
+  // Close sealed gate modal on spacebar
+  useEffect(() => {
+    if (!sealedGateModal) return;
+    function handleSealedGateKey(e: KeyboardEvent) {
+      if (e.key === ' ') setSealedGateModal(false);
+    }
+    window.addEventListener('keydown', handleSealedGateKey);
+    return () => window.removeEventListener('keydown', handleSealedGateKey);
+  }, [sealedGateModal]);
 
 
 
@@ -968,6 +1018,9 @@ const Maze: React.FC = () => {
                       boxShadow: isExit ? '0 0 0 1px #00ff6a, 0 0 8px 1px #00ff6a88' : undefined,
                       border: isExit ? '1px solid #00ff6a' : undefined,
                       zIndex: isExit ? 5 : undefined,
+                      backgroundImage: isExit ? `url(${doorImg})` : undefined,
+                      backgroundSize: isExit ? 'cover' : undefined,
+                      backgroundPosition: isExit ? 'center' : undefined,
                     }}
                   >
                     {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
