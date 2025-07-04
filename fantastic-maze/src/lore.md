@@ -83,7 +83,7 @@ Where it kneels, the dead do not rest.
 
 # Stained Exit Key
 
-> There are always two—one is found, the other taken.
+> There are always two — one is found, the other taken.
 
 The iron is worn smooth from hands long vanished.
 The stains are old. Some say blood, some say rust.

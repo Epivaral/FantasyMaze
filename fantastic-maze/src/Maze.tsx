@@ -153,6 +153,7 @@ const assetToLoreTitle: Record<string, string> = {
   hp: 'Unmarked Vial',
   player: 'The Woken Blades',
   maw: 'The Maw Below',
+  key: 'Stained Exit Key',
 };
 import './Maze.css';
 import playerImg from './assets/player.png';
@@ -762,8 +763,8 @@ const Maze: React.FC = () => {
           {/* Key icon display if collected */}
           {hasKey && (
             <div style={{marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-              <img src={keyImg} alt="Key Collected" style={{width: 38, height: 38, filter: 'drop-shadow(0 0 8px gold)'}} />
-              <div style={{fontSize: '1.05rem', color: '#bfa76a', marginTop: 2, fontWeight: 600}}>Key Collected</div>
+              <img src={keyImg} alt="Stained Exit Key" style={{width: 38, height: 38, filter: 'drop-shadow(0 0 8px gold)'}} />
+              <div style={{fontSize: '1.05rem', color: '#bfa76a', marginTop: 2, fontWeight: 600}}>Stained Exit Key</div>
             </div>
           )}
         </div>
@@ -933,6 +934,18 @@ const Maze: React.FC = () => {
                       className={className}
                       key={cIdx}
                       style={{ position: 'relative', zIndex: 10 }}
+                      onMouseEnter={e => {
+                        if (fogOpacity > 0.85) return;
+                        const lore = LORE[assetToLoreTitle['key']];
+                        setLoreModal({
+                          title: assetToLoreTitle['key'],
+                          cursive: lore?.cursive || '',
+                          description: lore?.description || '',
+                          x: (e as any).clientX || 0,
+                          y: (e as any).clientY || 0
+                        });
+                      }}
+                      onMouseLeave={() => setLoreModal(null)}
                     >
                       <img
                         src={keyImg}
@@ -987,9 +1000,9 @@ const Maze: React.FC = () => {
               padding: '2.5rem 2.5rem 2.5rem 2.5rem',
             }}>
               <img src={hiResKeyImg} alt="Key" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
-              <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>You found the Key</div>
+              <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>Stained Exit Key</div>
               <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
-                One of two now rests in your hands, you can leave now
+                One of two now rests in your hands, you can now leave the maze.<br />
               </div>
               <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
             </div>
@@ -1046,6 +1059,7 @@ const Maze: React.FC = () => {
                   else if (loreModal.title === 'Unmarked Vial') imgSrc = hiResHpImg;
                   else if (loreModal.title === 'The Woken Blades') imgSrc = hiResPlayerImg;
                   else if (loreModal.title === 'The Maw Below') imgSrc = hiResMawImg;
+                  else if (loreModal.title === 'Stained Exit Key') imgSrc = hiResKeyImg;
                   return imgSrc ? (
                     <img src={imgSrc} alt={loreModal.title} style={{width: 44, height: 44, objectFit: 'contain', filter: 'brightness(0.97) drop-shadow(0 0 6px #000a)'}} />
                   ) : null;
