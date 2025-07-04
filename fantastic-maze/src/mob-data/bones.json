@@ -4,8 +4,8 @@
   "image": "assets/bones.png",
   "hiResImage": "assets/hi-res/bones.png",
   "outcomes": [
-    { "label": "Defeat", "action": "defeat", "weight": 0.1 },
-    { "label": "Lose 10 HP", "action": "hp_gain", "amount": -10, "weight": 0.40 },
-    { "label": "Lose 20 HP", "action": "hp_gain", "amount": -20, "weight": 0.40 }
+    { "label": "Ash and Bones (win encounter)", "action": "defeat", "weight": 0.1 },
+    { "label": "Flesh Wound (-10 HP)", "action": "hp_gain", "amount": -10, "weight": 0.40 },
+    { "label": "Burden of the Dead (-20 HP)", "action": "hp_gain", "amount": -20, "weight": 0.40 }
   ]
 }

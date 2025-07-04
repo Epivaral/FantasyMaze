@@ -4,10 +4,10 @@
   "image": "assets/maw.png",
   "hiResImage": "assets/hi-res/maw.png",
   "outcomes": [
-    { "label": "Teleport", "action": "teleport", "weight": 0.20 },
-    { "label": "Devoured (Game Over)", "action": "lose", "weight": 0.10 },
-    { "label": "Lose 30 HP", "action": "hp_gain", "amount": -30, "weight": 0.30 },
-    { "label": "Defeat the Maw", "action": "defeat", "weight": 0.20 },
-    { "label": "Reborn from the abyss", "action": "hp_gain", "amount": 10, "weight": 0.20 }
+    { "label": "Dragged Beneath (teleport)", "action": "teleport", "weight": 0.20 },
+    { "label": "No Light, No Return (game over)", "action": "lose", "weight": 0.10 },
+    { "label": "Crushed in the Dark (-30 HP)", "action": "hp_gain", "amount": -30, "weight": 0.30 },
+    { "label": "Silenced Below (defeat mob)", "action": "defeat", "weight": 0.20 },
+    { "label": "Reborn from the abyss (+10 HP)", "action": "hp_gain", "amount": 10, "weight": 0.20 }
   ]
 }

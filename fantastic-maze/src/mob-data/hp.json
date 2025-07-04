@@ -4,8 +4,8 @@
   "image": "assets/hp.png",
   "hiResImage": "assets/hi-res/hp.png",
   "outcomes": [
-    { "label": "No Effect", "action": "hp_gain", "amount": 0, "weight": 0.25 },
-    { "label": "+10 HP", "action": "hp_gain", "amount": 10, "weight": 0.5 },
-    { "label": "+20 HP", "action": "hp_gain", "amount": 20, "weight": 0.25 }
+    { "label": "The Bottle is Empty", "action": "hp_gain", "amount": 0, "weight": 0.25 },
+    { "label": "Steady Pulse (+10 HP)", "action": "hp_gain", "amount": 10, "weight": 0.5 },
+    { "label": "Surge of Life (+20 HP)", "action": "hp_gain", "amount": 20, "weight": 0.25 }
   ]
 }
