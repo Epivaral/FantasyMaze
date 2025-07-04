@@ -5,7 +5,7 @@ export type MobType = 'bones' | 'wolf';
 export type BattleAction =
   | { type: 'set_hp'; value: number }
   | { type: 'hp_gain'; value: number }
-  | { type: 'defeat' }
+  | { type: 'defeat'; pos?: { row: number; col: number } }
   | { type: 'lose' }
   | { type: 'shuffle_maze' }
   | { type: 'teleport' }
@@ -37,7 +37,12 @@ export function executeBattleAction(action: BattleAction, state: GameState) {
       state.addHealth(action.value);
       break;
     case 'defeat':
-      state.defeatMob();
+      // Pass position if provided
+      if (action.pos) {
+        (state.defeatMob as any)(action.pos);
+      } else {
+        state.defeatMob();
+      }
       break;
     case 'lose':
       state.gameOver();
