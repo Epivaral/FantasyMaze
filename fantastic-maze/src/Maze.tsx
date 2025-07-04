@@ -590,7 +590,6 @@ const Maze: React.FC = () => {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // ...existing code...
       const modal = modalRef.current;
       const rouletteSpinning = rouletteSpinningRef.current;
       const rouletteResult = rouletteResultRef.current;
@@ -599,14 +598,15 @@ const Maze: React.FC = () => {
       const maze = mazeRef.current;
       const mobs = mobsRef.current;
       const hpVials = hpVialsRef.current;
-      // const won = wonRef.current; // (unused)
+      const keyPosCurrent = keyPos;
+      const hasKeyCurrent = hasKey;
 
-        if (endModal) {
-          if (e.key === ' ') {
-            regenerate();
-          }
-          return;
+      if (endModal) {
+        if (e.key === ' ') {
+          regenerate();
         }
+        return;
+      }
       // --- Unified modal/roulette handler ---
       if (modal) {
         const options = modal.options;
@@ -626,7 +626,6 @@ const Maze: React.FC = () => {
             if (typeof amount !== 'undefined') battleAction.value = amount;
             // Special handling for teleport
             if (action === 'teleport') {
-              // Find all empty cells except start and exit
               const maze = mazeRef.current;
               const emptyCells: {row: number, col: number}[] = [];
               for (let r = 0; r < MAZE_SIZE; r++) {
@@ -647,7 +646,6 @@ const Maze: React.FC = () => {
             if (modal.type === 'wolf' || modal.type === 'bones' || modal.type === 'maw') {
               setMobs(prev => {
                 const { type, row, col } = modal;
-                // Always default to empty arrays if missing
                 const bones = Array.isArray(prev.bones) ? prev.bones : [];
                 const wolves = Array.isArray(prev.wolves) ? prev.wolves : [];
                 const maws = Array.isArray(prev.maws) ? prev.maws : [];
@@ -671,11 +669,15 @@ const Maze: React.FC = () => {
         }
       }
       let { row, col } = player;
-      if (e.key === 'ArrowUp' && row > 0 && maze[row - 1][col] === 0) row--;
-      if (e.key === 'ArrowDown' && row < MAZE_SIZE - 1 && maze[row + 1][col] === 0) row++;
-      if (e.key === 'ArrowLeft' && col > 0 && maze[row][col - 1] === 0) col--;
-      if (e.key === 'ArrowRight' && col < MAZE_SIZE - 1 && maze[row][col + 1] === 0) col++;
-      // --- Generic mob/vial collision logic ---
+      let moved = false;
+      if (e.key === 'ArrowUp' && row > 0 && maze[row - 1][col] === 0) { row--; moved = true; }
+      if (e.key === 'ArrowDown' && row < MAZE_SIZE - 1 && maze[row + 1][col] === 0) { row++; moved = true; }
+      if (e.key === 'ArrowLeft' && col > 0 && maze[row][col - 1] === 0) { col--; moved = true; }
+      if (e.key === 'ArrowRight' && col < MAZE_SIZE - 1 && maze[row][col + 1] === 0) { col++; moved = true; }
+      if (!moved) return;
+      // Update player position first
+      setPlayer({ row, col });
+      // Now check for mob/vial/key collision at new position
       // Check for mob collision (bones, wolf, maw)
       const mobTypes: Array<{ type: ModalEntityType, list: {row: number, col: number}[] }> = [
         { type: 'wolf', list: mobs.wolves },
@@ -696,18 +698,16 @@ const Maze: React.FC = () => {
             col,
             options,
           });
-          setPlayer({ row, col });
           setRouletteResult(null);
           setRouletteSpinning(true);
           return;
         }
       }
-      // Key item
-      if (keyPos && row === keyPos.row && col === keyPos.col && !hasKey) {
+      // Key item (fix: use refs for keyPos/hasKey)
+      if (keyPosCurrent && row === keyPosCurrent.row && col === keyPosCurrent.col && !hasKeyCurrent) {
         setHasKey(true);
         setKeyModal({ x: row, y: col });
         setKeyPos(null);
-        setPlayer({ row, col });
         return;
       }
       // HP vial
@@ -722,12 +722,10 @@ const Maze: React.FC = () => {
           col,
           options: config.data.outcomes,
         });
-        setPlayer({ row, col });
         setRouletteResult(null);
         setRouletteSpinning(true);
         return;
       }
-      setPlayer({ row, col });
       if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1) {
         setWon(true);
         setEndModal('win');
@@ -735,7 +733,7 @@ const Maze: React.FC = () => {
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [keyPos, hasKey]);
 
 
 
@@ -761,6 +759,13 @@ const Maze: React.FC = () => {
             {/* Add more stats as needed */}
           </ul>
           <button className="regenerate-btn" onClick={regenerate} disabled={!!modal || !!endModal}>Regenerate Maze</button>
+          {/* Key icon display if collected */}
+          {hasKey && (
+            <div style={{marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+              <img src={keyImg} alt="Key Collected" style={{width: 38, height: 38, filter: 'drop-shadow(0 0 8px gold)'}} />
+              <div style={{fontSize: '1.05rem', color: '#bfa76a', marginTop: 2, fontWeight: 600}}>Key Collected</div>
+            </div>
+          )}
         </div>
       </div>
       <div className="maze-container">
@@ -955,41 +960,41 @@ const Maze: React.FC = () => {
                     {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                   </div>
                 );
-      {/* Key Modal */}
-      {keyModal && (
-        <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
-          <div className="maze-modal-content" style={{
-            backgroundImage: `url(${hiResKeyImg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            color: '#fff',
-            textAlign: 'center',
-            minWidth: 320,
-            minHeight: 220,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.2rem',
-            fontFamily: 'EB Garamond, serif',
-            border: '2.5px solid #bfa76a',
-            borderRadius: 12,
-            boxShadow: '0 0 48px #000a',
-            padding: '2.5rem 2.5rem 2.5rem 2.5rem',
-          }}>
-            <img src={hiResKeyImg} alt="Key" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
-            <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>You found the Key</div>
-            <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
-              One of two now rests in your hands, you can leave now
-            </div>
-            <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
-          </div>
-        </div>
-      )}
               })}
             </div>
           ))}
         </div>
+        {/* Key Modal (moved outside grid for reliability) */}
+        {keyModal && (
+          <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
+            <div className="maze-modal-content" style={{
+              backgroundImage: `url(${hiResBackground})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              color: '#fff',
+              textAlign: 'center',
+              minWidth: 320,
+              minHeight: 220,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.2rem',
+              fontFamily: 'EB Garamond, serif',
+              border: '2.5px solid #bfa76a',
+              borderRadius: 12,
+              boxShadow: '0 0 48px #000a',
+              padding: '2.5rem 2.5rem 2.5rem 2.5rem',
+            }}>
+              <img src={hiResKeyImg} alt="Key" style={{width: 96, height: 96, marginBottom: 18, filter: 'drop-shadow(0 0 12px #bfa76a)'}} />
+              <div style={{fontWeight: 700, fontSize: '1.3rem', marginBottom: 8}}>You found the Key</div>
+              <div style={{fontSize: '1.05rem', color: '#ffe', marginBottom: 12}}>
+                One of two now rests in your hands, you can leave now
+              </div>
+              <div style={{marginTop: 12, fontSize: '1.1rem', color: '#bfa76a'}}>Press SPACE to close</div>
+            </div>
+          </div>
+        )}
         {/* Lore Modal (global, not inside grid) */}
         {loreModal && (
           <div
