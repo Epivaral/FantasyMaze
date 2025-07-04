@@ -52,25 +52,34 @@ export const GenericVsModal: React.FC<GenericVsModalProps> = ({
             <span className="asset-name">{mobName}</span>
           </div>
         </div>
-        <div style={{marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '2rem'}}>
+        <div style={{
+          marginTop: '1.2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.7rem',
+        }}>
           {options.map((opt, idx) => (
             <div key={opt.label} style={{
-              border: selectedIndex === idx ? '4px solid gold' : '2px solid #888',
-              borderRadius: 12,
-              padding: '1rem 2.5rem',
+              border: selectedIndex === idx ? '3px solid gold' : '1.5px solid #888',
+              borderRadius: 8,
+              padding: '0.5rem 1.2rem',
               background: '#181818',
               color: opt.amount && opt.amount < 0 ? '#f00' : '#ff0',
               fontWeight: 'bold',
-              fontSize: '2rem',
-              boxShadow: selectedIndex === idx ? '0 0 16px gold' : 'none',
+              fontSize: '1.15rem',
+              boxShadow: selectedIndex === idx ? '0 0 8px gold' : 'none',
               opacity: spinning && selectedIndex !== idx ? 0.5 : 1,
               transition: 'all 0.2s',
+              minWidth: 120,
+              textAlign: 'center',
+              cursor: 'pointer',
             }}>
               {opt.label}
             </div>
           ))}
         </div>
-        <div className="versus-instructions">
+        <div className="versus-instructions" style={{ fontSize: '1rem', marginTop: 10 }}>
           {spinning
             ? 'Press SPACE to stop the roulette!'
             : (selectedIndex !== null && options[selectedIndex])
