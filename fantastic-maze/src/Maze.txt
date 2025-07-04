@@ -325,22 +325,16 @@ function placeMobs(
   const bonesMax = MOB_CONFIG.bones.data.max;
   const wolfMin = MOB_CONFIG.wolf.data.min;
   const wolfMax = MOB_CONFIG.wolf.data.max;
-  const mawMin = MOB_CONFIG.maw.data.min;
-  const mawMax = MOB_CONFIG.maw.data.max;
   const bonesCount = Math.floor(Math.random() * (bonesMax - bonesMin + 1)) + bonesMin;
   const wolvesCount = Math.floor(Math.random() * (wolfMax - wolfMin + 1)) + wolfMin;
-  const mawsCount = Math.floor(Math.random() * (mawMax - mawMin + 1)) + mawMin;
   let bones = pickPositions(bonesCount, [player]);
   let wolves = pickPositions(wolvesCount, [player, ...bones]);
-  let maws = pickPositions(mawsCount, [player, ...bones, ...wolves]);
   // Distribute forced mobs between bones and wolves randomly
   forcedMobs.forEach(fm => {
-    const roll = Math.random();
-    if (roll < 0.33) bones = [fm, ...bones];
-    else if (roll < 0.66) wolves = [fm, ...wolves];
-    else maws = [fm, ...maws];
+    if (Math.random() < 0.5) bones = [fm, ...bones];
+    else wolves = [fm, ...wolves];
   });
-  return { bones, wolves, maws };
+  return { bones, wolves };
 }
 
 interface Player {
@@ -416,7 +410,7 @@ const Maze: React.FC = () => {
   }, [loreModal]);
   const [maze, setMaze] = useState<Cell[][]>(() => generateMaze(MAZE_SIZE));
   const [won, setWon] = useState(false);
-  const [mobs, setMobs] = useState<{ bones: {row: number, col: number}[], wolves: {row: number, col: number}[], maws: {row: number, col: number}[] }>({ bones: [], wolves: [], maws: [] });
+  const [mobs, setMobs] = useState<{ bones: {row: number, col: number}[], wolves: {row: number, col: number}[] }>({ bones: [], wolves: [] });
   const [hpVials, setHpVials] = useState<{row: number, col: number}[]>([]);
   const [modal, setModal] = useState<ModalState>(null);
   // Use a simple boolean for spinning status
@@ -438,7 +432,6 @@ const Maze: React.FC = () => {
       { row: size - 1, col: size - 1 },
       ...mobsPlaced.bones,
       ...mobsPlaced.wolves,
-      ...(mobsPlaced.maws || []),
     ];
     const pathCells: {row: number, col: number}[] = [];
     for (let r = 0; r < size; r++) {
@@ -580,9 +573,8 @@ const Maze: React.FC = () => {
               setMobs(prev => {
                 const { type, row, col } = modal;
                 return {
-                  bones: type === 'bones' ? prev.bones.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.bones,
-                  wolves: type === 'wolf' ? prev.wolves.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.wolves,
-                  maws: type === 'maw' ? prev.maws.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : prev.maws,
+                  bones: type === 'bones' ? prev.bones.filter(m => !(m.row === row && m.col === col)) : prev.bones,
+                  wolves: type === 'wolf' ? prev.wolves.filter(m => !(m.row === row && m.col === col)) : prev.wolves,
                 };
               });
             } else if (modal.type === 'hp') {
@@ -608,7 +600,7 @@ const Maze: React.FC = () => {
       const mobTypes: Array<{ type: ModalEntityType, list: {row: number, col: number}[] }> = [
         { type: 'wolf', list: mobs.wolves },
         { type: 'bones', list: mobs.bones },
-        { type: 'maw', list: mobs.maws },
+        // Add maw support if you add to mobs
       ];
       for (const mob of mobTypes) {
         const found = mob.list.find(m => m.row === row && m.col === col);
@@ -774,36 +766,6 @@ const Maze: React.FC = () => {
                       <img
                         src={wolfImg}
                         alt="wolf"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
-                        draggable={false}
-                      />
-                      {isFogged && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0.9,pointerEvents:'auto',zIndex:20}} draggable={false} />}
-                    </div>
-                  );
-                }
-                // Maw mob
-                if (mobs.maws && mobs.maws.some(m => m.row === rIdx && m.col === cIdx)) {
-                  return (
-                    <div
-                      className={className}
-                      key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
-                      onMouseEnter={e => {
-                        if (isFogged) return;
-                        const lore = LORE[assetToLoreTitle['maw']];
-                        setLoreModal({
-                          title: assetToLoreTitle['maw'],
-                          cursive: lore?.cursive || '',
-                          description: lore?.description || '',
-                          x: (e as any).clientX || 0,
-                          y: (e as any).clientY || 0
-                        });
-                      }}
-                      onMouseLeave={() => setLoreModal(null)}
-                    >
-                      <img
-                        src={hiResMawImg}
-                        alt="maw"
                         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
                         draggable={false}
                       />
