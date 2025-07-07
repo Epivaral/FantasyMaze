@@ -248,9 +248,9 @@ function generateMaze(size: number): Cell[][] {
     if (exitRow > 0) maze[exitRow - 1][exitCol] = 0;
     else if (exitCol > 0) maze[exitRow][exitCol - 1] = 0;
   }
-  // Remove some random walls to make the maze more open
-  // Make maze denser: only 15% open (was 20%)
-  let openCount = Math.floor(size * size * 0.15);
+  // Remove some random walls to make the maze a bit more open, but less than before
+  // Make maze denser: only 12% open (was 15%)
+  let openCount = Math.floor(size * size * 0.12);
   while (openCount > 0) {
     const r = Math.floor(Math.random() * size);
     const c = Math.floor(Math.random() * size);
@@ -313,13 +313,25 @@ function placeMobs(
   // Find shortest path and pick multiple cells (not start/end) for forced mobs
   const path = findShortestPath(maze);
   const pathChoices = path.filter(p => !(p.row === 0 && p.col === 0) && !(p.row === size-1 && p.col === size-1));
-  // Place 2-3 forced mobs on the path
+  // Place 2-3 forced mobs on the path, but only if not already occupied
   let forcedMobs: {row: number, col: number}[] = [];
   if (pathChoices.length > 0) {
     const forcedCount = Math.min(3, Math.max(2, Math.floor(pathChoices.length / 5))); // 2 or 3 forced mobs
     const shuffled = [...pathChoices].sort(() => Math.random() - 0.5);
-    forcedMobs = shuffled.slice(0, forcedCount);
+    forcedMobs = [];
+    for (let i = 0; i < shuffled.length && forcedMobs.length < forcedCount; i++) {
+      const pos = shuffled[i];
+      // Never place on start/end
+      if ((pos.row === 0 && pos.col === 0) || (pos.row === size-1 && pos.col === size-1)) continue;
+      forcedMobs.push(pos);
+    }
   }
+
+  // Helper to check if a cell is at least minDist away from all in a list
+  function isFarEnough(pos: {row: number, col: number}, others: {row: number, col: number}[]) {
+    return others.every(p => manhattan(p, pos) >= minDist);
+  }
+
   function pickPositions(count: number, avoid: {row: number, col: number}[]) {
     const chosen: {row: number, col: number}[] = [];
     let tries = 0;
@@ -327,9 +339,11 @@ function placeMobs(
       const idx = Math.floor(Math.random() * pathCells.length);
       const pos = pathCells[idx];
       if (
-        !chosen.some(p => manhattan(p, pos) < minDist) &&
-        !avoid.some(p => manhattan(p, pos) < minDist) &&
-        (!forcedMobs.some(fm => fm.row === pos.row && fm.col === pos.col))
+        isFarEnough(pos, chosen) &&
+        isFarEnough(pos, avoid) &&
+        !forcedMobs.some(fm => fm.row === pos.row && fm.col === pos.col) &&
+        !(pos.row === 0 && pos.col === 0) &&
+        !(pos.row === size-1 && pos.col === size-1)
       ) {
         chosen.push(pos);
       }
@@ -337,6 +351,7 @@ function placeMobs(
     }
     return chosen;
   }
+
   // Use min/max from JSON for each mob type
   const bonesMin = MOB_CONFIG.bones.data.min;
   const bonesMax = MOB_CONFIG.bones.data.max;
@@ -347,16 +362,28 @@ function placeMobs(
   const bonesCount = Math.floor(Math.random() * (bonesMax - bonesMin + 1)) + bonesMin;
   const wolvesCount = Math.floor(Math.random() * (wolfMax - wolfMin + 1)) + wolfMin;
   const mawsCount = Math.floor(Math.random() * (mawMax - mawMin + 1)) + mawMin;
+
+  // Place mobs, always avoiding start/end and other mobs, and forced mobs
   let bones = pickPositions(bonesCount, [player]);
   let wolves = pickPositions(wolvesCount, [player, ...bones]);
   let maws = pickPositions(mawsCount, [player, ...bones, ...wolves]);
-  // Distribute forced mobs between bones and wolves randomly
+
+  // Distribute forced mobs between bones, wolves, maws, but only if not already occupied and minDist is respected
   forcedMobs.forEach(fm => {
+    // Don't place if already occupied by any mob
+    if (
+      bones.some(m => m.row === fm.row && m.col === fm.col) ||
+      wolves.some(m => m.row === fm.row && m.col === fm.col) ||
+      maws.some(m => m.row === fm.row && m.col === fm.col)
+    ) return;
+    // Don't place if too close to any mob
+    if (!isFarEnough(fm, [...bones, ...wolves, ...maws, player])) return;
     const roll = Math.random();
-    if (roll < 0.33) bones = [fm, ...bones];
-    else if (roll < 0.66) wolves = [fm, ...wolves];
-    else maws = [fm, ...maws];
+    if (roll < 0.33) bones.push(fm);
+    else if (roll < 0.66) wolves.push(fm);
+    else maws.push(fm);
   });
+
   return { bones, wolves, maws };
 }
 
@@ -379,14 +406,14 @@ const Maze: React.FC = () => {
   const [sealedGateModal, setSealedGateModal] = useState<KeyGateState>(null);
   // Gradient fog: 0–2 distance = 0, 3=0.2, 4=0.4, 5=0.6, 6=0.8, >6=0.9
   function getFogArray(centerRow: number, centerCol: number) {
-    const arr = Array.from({ length: MAZE_SIZE }, () => Array(MAZE_SIZE).fill(0.9));
+    const arr = Array.from({ length: MAZE_SIZE }, () => Array(MAZE_SIZE).fill(1));
     for (let dy = -5; dy <= 5; dy++) {
       for (let dx = -5; dx <= 5; dx++) {
         const dist = Math.max(Math.abs(dx), Math.abs(dy));
         const x = centerCol + dx;
         const y = centerRow + dy;
         if (x >= 0 && x < MAZE_SIZE && y >= 0 && y < MAZE_SIZE) {
-          let op = 0.9;
+          let op = 1;
           if (dist <= 2) op = 0;
           else if (dist === 3) op = 0.2;
           else if (dist === 4) op = 0.5;
