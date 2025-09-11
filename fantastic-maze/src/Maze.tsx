@@ -1,10 +1,45 @@
+// React and core dependencies
+import React, { useEffect, useState, useRef } from 'react';
+
+// Local modules
+import { executeBattleAction } from './BattleActions';
+import { createGameStateHandlers } from './GameActionHandlers';
+import { renderHearts } from './HeartBar';
+
+// Styles
+import './Maze.css';
+
+// Asset imports
 import keyImg from './assets/key.png';
 import hiResKeyImg from './assets/hi-res/key.png';
-// Key modal state
+import fogImg from './assets/fog.png';
+import playerImg from './assets/player.png';
+import doorImg from './assets/door.png';
+import bonesImg from './assets/bones.png';
+import wolfImg from './assets/wolf.png';
+import hpImg from './assets/hp.png';
+
+// Hi-res asset imports
+import hiResPlayerImg from './assets/hi-res/player.png';
+import hiResDoorImg from './assets/hi-res/door.png';
+import hiResBonesImg from './assets/hi-res/bones.png';
+import hiResWolfImg from './assets/hi-res/wolf.png';
+import hiResMawImg from './assets/hi-res/maw.png';
+import hiResHpImg from './assets/hi-res/hp.png';
+import hiResBackground from './assets/hi-res/background.png';
+
+// Mob data imports
+import wolfData from './mob-data/wolf.json';
+import bonesData from './mob-data/bones.json';
+import mawData from './mob-data/maw.json';
+import hpData from './mob-data/hp.json';
+
+// Lore markdown
+import loreMd from './lore.md?raw'; // Vite raw import
+
+// Type definitions
 type KeyModalState = null | { x: number, y: number };
 type KeyGateState = null | { x: number, y: number };
-
-import fogImg from './assets/fog.png';
 
 
 interface VsOption {
@@ -33,8 +68,6 @@ export const GenericVsModal: React.FC<GenericVsModalProps> = ({
   options,
   spinning,
   selectedIndex,
-  // onStop, // Unused prop
-  // onApply, // Unused prop
   hiResBackground,
 }) => {
   return (
@@ -95,11 +128,7 @@ export const GenericVsModal: React.FC<GenericVsModalProps> = ({
   );
 };
 
-import React, { useEffect, useState, useRef } from 'react';
-import { executeBattleAction } from './BattleActions';
-import { createGameStateHandlers } from './GameActionHandlers';
 // --- Lore Parsing and Asset Mapping ---
-import loreMd from './lore.md?raw'; // Vite raw import
 
 // Parse lore.md into a map: title -> { cursive, description }
 function parseLore(md: string): Record<string, { cursive: string, description: string }> {
@@ -155,25 +184,6 @@ const assetToLoreTitle: Record<string, string> = {
   maw: 'The Maw Below',
   key: 'Stained Exit Key',
 };
-import './Maze.css';
-import playerImg from './assets/player.png';
-import doorImg from './assets/door.png';
-import bonesImg from './assets/bones.png';
-import wolfImg from './assets/wolf.png';
-import hiResPlayerImg from './assets/hi-res/player.png';
-import hiResDoorImg from './assets/hi-res/door.png';
-import hiResBonesImg from './assets/hi-res/bones.png';
-import hiResWolfImg from './assets/hi-res/wolf.png';
-import wolfData from './mob-data/wolf.json';
-import bonesData from './mob-data/bones.json';
-import mawData from './mob-data/maw.json';
-import hpData from './mob-data/hp.json';
-import hiResMawImg from './assets/hi-res/maw.png';
-import { renderHearts } from './HeartBar';
-import hpImg from './assets/hp.png';
-import hiResHpImg from './assets/hi-res/hp.png';
-import hiResBackground from './assets/hi-res/background.png';
-
 
 // --- Generic Modal State ---
 type ModalEntityType = 'wolf' | 'bones' | 'maw' | 'hp';
