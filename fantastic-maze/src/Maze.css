@@ -21,10 +21,11 @@
   outline: none;
   box-shadow: 0 0 64px #000c;
 }
+/* Mobile-first responsive design */
 .maze-layout {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   width: 100vw;
   height: 100vh;
@@ -37,30 +38,65 @@
   margin: 0;
   padding: 0;
   z-index: 0;
+  overflow: hidden;
+}
+
+/* Desktop layout */
+@media (min-width: 1024px) {
+  .maze-layout {
+    flex-direction: row;
+    justify-content: center;
+    overflow: visible;
+  }
 }
 
 .maze-container {
-  margin-top: 2rem;
-  margin-bottom: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   padding: 10px;
+  flex: 1;
+  width: 100%;
+  height: 100vh;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .maze-container {
+    margin-top: 2rem;
+    margin-bottom: 0;
+    padding: 10px;
+    flex: initial;
+    width: auto;
+    height: auto;
+  }
 }
 
 .regenerate-btn {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   margin-top: 0;
-  align-self: flex-end;
+  align-self: center;
   background: #232323;
   color: #fff;
   border: 2px solid #0ff;
   border-radius: 8px;
-  padding: 0.5rem 1.2rem;
-  font-size: 1.1rem;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
   font-weight: bold;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .regenerate-btn {
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 1.2rem;
+    font-size: 1.1rem;
+    align-self: flex-end;
+  }
 }
 .regenerate-btn:hover {
   background: #0ff;
@@ -70,9 +106,21 @@
 .maze-grid {
   display: flex;
   flex-direction: column;
-  border: 0px ;
+  border: 1px solid #444;
   background: #000000;
-  margin: 1rem 0;
+  margin: 0;
+  width: fit-content;
+  height: fit-content;
+  touch-action: pan-x pan-y;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .maze-grid {
+    margin: 1rem 0;
+    touch-action: auto;
+    border: 0px;
+  }
 }
 
 .maze-row {
@@ -80,8 +128,8 @@
 }
 
 .maze-wall {
-  width: 40px;
-  height: 40px;
+  width: 18px;
+  height: 18px;
   background: #444;
   border: 1px solid #222;
   background-image: url('./assets/wall.png');
@@ -91,10 +139,52 @@
 }
 
 .maze-path {
-  width: 40px;
-  height: 40px;
+  width: 18px;
+  height: 18px;
   background: #333;
   border: 1px solid #333;
+}
+
+/* Mobile viewport cells (9x9 grid) */
+@media (max-width: 1023px) {
+  .maze-grid {
+    border: 2px solid #666 !important;
+    background: #000000 !important;
+  }
+  
+  .maze-wall,
+  .maze-path {
+    width: 35px !important;
+    height: 35px !important;
+    border: 1px solid #444 !important;
+  }
+  
+  .maze-wall {
+    background: #444 !important;
+    border-color: #666 !important;
+    background-image: url('./assets/wall.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+  
+  .maze-path {
+    background: #222 !important;
+    border-color: #444 !important;
+  }
+}
+
+/* Desktop size */
+@media (min-width: 1024px) {
+  .maze-wall {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .maze-path {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .maze-player {
@@ -146,9 +236,21 @@
   background: #222;
   border: 4px solid #fff;
   border-radius: 16px;
-  padding: 2rem 3rem;
+  padding: 1rem 1.5rem;
   box-shadow: 0 0 32px #000;
   text-align: center;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .maze-modal-content {
+    padding: 2rem 3rem;
+    max-width: none;
+    max-height: none;
+  }
 }
 
 /* Golden border for VS modal */
@@ -174,11 +276,20 @@
 
 
 .versus-title {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   color: #fff;
   font-weight: bold;
-  margin-bottom: 1.5rem;
-  letter-spacing: 0.2em;
+  margin-bottom: 1rem;
+  letter-spacing: 0.1em;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .versus-title {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.2em;
+  }
 }
 
 /* Asset name text under VS images */
@@ -195,13 +306,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .versus-row {
+    gap: 2.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: nowrap;
+  }
 }
 
 .versus-img {
-  width: 187px;
-  height: 187px;
+  width: 120px;
+  height: 120px;
   object-fit: contain;
   background: #372247; /* Darker tetric purple */
   border-radius: 12px;
@@ -211,8 +332,21 @@
 
 /* Only increase size for VS modal */
 .maze-modal.vs-modal .versus-img {
-  width: 255px;
-  height: 255px;
+  width: 160px;
+  height: 160px;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .versus-img {
+    width: 187px;
+    height: 187px;
+  }
+
+  .maze-modal.vs-modal .versus-img {
+    width: 255px;
+    height: 255px;
+  }
 }
 
 .versus-vs {
@@ -230,32 +364,80 @@
 }
 
 .maze-sidebar {
-  width: 220px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 2rem 1rem;
-  box-sizing: border-box;
+  display: none; /* Hidden on mobile by default */
 }
 
 .maze-sidebar.maze-sidebar-right { 
-  margin-top: 2.0rem;
-  width: 25%;
+  display: none;
 }
 
 .maze-sidebar.maze-sidebar-left { 
-  margin-top: 2.0rem;
-  width: 25%;
+  display: none;
+}
+
+/* Mobile sidebar when shown */
+.maze-sidebar.mobile-visible {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(24, 24, 24, 0.95);
+  z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* Desktop layout */
+@media (min-width: 1024px) {
+  .maze-sidebar {
+    display: flex !important;
+    width: 220px;
+    min-height: 100vh;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 2rem 1rem;
+    position: static;
+    background: transparent;
+  }
+
+  .maze-sidebar.maze-sidebar-right { 
+    display: flex !important;
+    margin-top: 2.0rem;
+    width: 25%;
+  }
+
+  .maze-sidebar.maze-sidebar-left { 
+    display: flex !important;
+    margin-top: 2.0rem;
+    width: 25%;
+  }
+  
+  .maze-sidebar.mobile-visible {
+    position: static;
+    background: transparent;
+    overflow-y: visible;
+  }
 }
 
 .player-stats-box {
   background: #232323;
   color: #fff;
   border-radius: 12px;
-  padding: 5px;
-  width: 60%;
+  padding: 1rem;
+  width: 90%;
   box-shadow: 0 0 12px #0008;
+  margin-bottom: 1rem;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .player-stats-box {
+    width: 60%;
+    padding: 15px;
+    margin-bottom: 0;
+  }
 }
 .player-stats-box h2 {
   font-size: 1.3rem;
@@ -276,13 +458,96 @@
   background: #232323;
   color: #fff;
   border-radius: 12px;
-  padding: 30px;
-  width: 75%;
+  padding: 1rem;
+  width: 90%;
   box-shadow: 0 0 12px #0008;
   text-align: left;
+  font-size: 0.9rem;
 }
+
 .maze-instructions-box h2 {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   margin-bottom: 1rem;
   color: #ff0;
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .maze-instructions-box {
+    padding: 30px;
+    width: 75%;
+    font-size: 1rem;
+  }
+  
+  .maze-instructions-box h2 {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+  }
+}
+.maze-instructions-box h2 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #ff0;
+}
+
+/* Hide mobile controls - using direct touch instead */
+.mobile-controls {
+  display: none;
+}
+
+/* Mobile toggle buttons */
+.mobile-toggle-buttons {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.mobile-toggle-btn {
+  background: rgba(35, 35, 35, 0.9);
+  color: #fff;
+  border: 1px solid #666;
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.mobile-toggle-btn:active {
+  background: rgba(85, 85, 85, 0.9);
+}
+
+.mobile-close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: #f00;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+/* Hide toggle buttons on desktop */
+@media (min-width: 1024px) {
+  .mobile-toggle-buttons {
+    display: none;
+  }
+  
+  .mobile-close-btn {
+    display: none;
+  }
 }

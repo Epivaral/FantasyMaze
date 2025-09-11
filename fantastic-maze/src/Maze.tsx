@@ -71,7 +71,16 @@ export const GenericVsModal: React.FC<GenericVsModalProps> = ({
   hiResBackground,
 }) => {
   return (
-    <div className="maze-modal vs-modal">
+    <div className="maze-modal vs-modal" onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Trigger mobile action on modal tap
+      if (window.innerWidth < 1024) {
+        // Simulate spacebar press for mobile
+        const event = new KeyboardEvent('keydown', { key: ' ' });
+        window.dispatchEvent(event);
+      }
+    }}>
       <div className="maze-modal-content" style={{
         backgroundImage: `url(${hiResBackground})`,
         backgroundSize: 'cover',
@@ -470,6 +479,69 @@ const Maze: React.FC = () => {
   // Remove rouletteApplied, use modal presence as the only trigger
   const [health, setHealth] = useState(100);
   const [endModal, setEndModal] = useState<null | 'win' | 'lose'>(null);
+
+  // Touch handling for direct grid interaction
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
+  const minSwipeDistance = 30;
+
+  // Mobile sidebar toggle state
+  const [showLeftSidebar, setShowLeftSidebar] = useState(false);
+  const [showRightSidebar, setShowRightSidebar] = useState(false);
+  
+  // Mobile viewport state
+  const [isMobile, setIsMobile] = useState(false);
+  const MOBILE_VIEWPORT_SIZE = 9; // 9x9 grid on mobile
+  
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Calculate visible grid bounds for mobile viewport
+  const getVisibleBounds = () => {
+    if (!isMobile) {
+      return { startRow: 0, endRow: MAZE_SIZE, startCol: 0, endCol: MAZE_SIZE };
+    }
+    
+    const halfSize = Math.floor(MOBILE_VIEWPORT_SIZE / 2);
+    let startRow = player.row - halfSize;
+    let endRow = player.row + halfSize + (MOBILE_VIEWPORT_SIZE % 2);
+    let startCol = player.col - halfSize;
+    let endCol = player.col + halfSize + (MOBILE_VIEWPORT_SIZE % 2);
+    
+    // Adjust bounds to stay within maze
+    if (startRow < 0) {
+      endRow -= startRow;
+      startRow = 0;
+    }
+    if (endRow > MAZE_SIZE) {
+      startRow -= (endRow - MAZE_SIZE);
+      endRow = MAZE_SIZE;
+    }
+    if (startCol < 0) {
+      endCol -= startCol;
+      startCol = 0;
+    }
+    if (endCol > MAZE_SIZE) {
+      startCol -= (endCol - MAZE_SIZE);
+      endCol = MAZE_SIZE;
+    }
+    
+    // Ensure we don't go negative
+    startRow = Math.max(0, startRow);
+    startCol = Math.max(0, startCol);
+    endRow = Math.min(MAZE_SIZE, endRow);
+    endCol = Math.min(MAZE_SIZE, endCol);
+    
+    return { startRow, endRow, startCol, endCol };
+  };
+  
   // Exit modal for sealed gate (no key)
   
 
@@ -773,6 +845,341 @@ const Maze: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [keyPos, hasKey]);
 
+  // Mobile control handlers
+  const handleMobileMove = (direction: string) => {
+    if (modal || endModal || loreModal || keyModal || sealedGateModal) return;
+    
+    const { row, col } = player;
+    let newRow = row;
+    let newCol = col;
+
+    switch (direction) {
+      case 'up': newRow = row - 1; break;
+      case 'down': newRow = row + 1; break;
+      case 'left': newCol = col - 1; break;
+      case 'right': newCol = col + 1; break;
+    }
+
+    // Check bounds
+    if (newRow < 0 || newRow >= MAZE_SIZE || newCol < 0 || newCol >= MAZE_SIZE) return;
+
+    if (maze[newRow][newCol] === 0) {
+      // Update player position first
+      setPlayer({ row: newRow, col: newCol });
+      
+      // Check for interactions at new position (same logic as keyboard handler)
+      // Check for mob collision (bones, wolf, maw)
+      const mobTypes: Array<{ type: ModalEntityType, list: {row: number, col: number}[] }> = [
+        { type: 'wolf', list: mobs.wolves },
+        { type: 'bones', list: mobs.bones },
+        { type: 'maw', list: mobs.maws },
+      ];
+      for (const mob of mobTypes) {
+        const found = mob.list.find(m => m.row === newRow && m.col === newCol);
+        if (found) {
+          const mobKey = mob.type;
+          const config = MOB_CONFIG[mobKey];
+          const options: VsOption[] = config.data.outcomes;
+          setModal({
+            type: mob.type,
+            mobKey,
+            data: config.data,
+            row: newRow,
+            col: newCol,
+            options,
+          });
+          setRouletteResult(null);
+          setRouletteSpinning(true);
+          return;
+        }
+      }
+      
+      // Key item check
+      if (keyPos && newRow === keyPos.row && newCol === keyPos.col && !hasKey) {
+        setHasKey(true);
+        setKeyModal({ x: newRow, y: newCol });
+        setKeyPos(null);
+        return;
+      }
+      
+      // HP vial check
+      const hpVial = hpVials.find(v => v.row === newRow && v.col === newCol);
+      if (hpVial) {
+        const config = MOB_CONFIG['hp'];
+        setModal({
+          type: 'hp',
+          mobKey: 'hp',
+          data: config.data,
+          row: newRow,
+          col: newCol,
+          options: config.data.outcomes,
+        });
+        setRouletteResult(null);
+        setRouletteSpinning(true);
+        return;
+      }
+      
+      // Sealed gate check
+      if (newRow === MAZE_SIZE - 1 && newCol === MAZE_SIZE - 1 && !hasKey) {
+        setSealedGateModal({ x: newRow, y: newCol });
+        return;
+      }
+      
+      // Check win condition
+      if (newRow === MAZE_SIZE - 1 && newCol === MAZE_SIZE - 1 && hasKey) {
+        setWon(true);
+        setEndModal('win');
+      }
+    }
+  };
+
+  // Touch/swipe handlers for direct grid interaction
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setTouchEnd(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setTouchEnd({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    if (!touchStart || !touchEnd) return;
+
+    const deltaX = touchEnd.x - touchStart.x;
+    const deltaY = touchEnd.y - touchStart.y;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
+    // Check if it's a swipe (minimum distance) or a tap
+    if (absDeltaX < minSwipeDistance && absDeltaY < minSwipeDistance) {
+      // It's a tap - handle grid tap for mobile viewport
+      if (isMobile) {
+        handleMobileGridTap(e);
+      } else {
+        handleMobileAction();
+      }
+    } else {
+      // It's a swipe - determine direction
+      if (absDeltaX > absDeltaY) {
+        // Horizontal swipe
+        if (deltaX > 0) {
+          handleMobileMove('right');
+        } else {
+          handleMobileMove('left');
+        }
+      } else {
+        // Vertical swipe
+        if (deltaY > 0) {
+          handleMobileMove('down');
+        } else {
+          handleMobileMove('up');
+        }
+      }
+    }
+
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  const handleGridTap = (e: React.MouseEvent) => {
+    // For desktop, simple click triggers action
+    if (window.innerWidth >= 1024) return; // Only on mobile
+    e.preventDefault();
+    if (isMobile) {
+      handleMobileGridTap(e);
+    } else {
+      handleMobileAction();
+    }
+  };
+
+  // Handle tap on mobile viewport grid
+  const handleMobileGridTap = (e: React.TouchEvent | React.MouseEvent) => {
+    if (modal || endModal || loreModal || keyModal || sealedGateModal) return;
+    
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.changedTouches[0].clientY : e.clientY;
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    // Calculate which cell was tapped based on mobile grid
+    const bounds = getVisibleBounds();
+    const cellSize = isMobile ? 35 : 18; // Updated for 9x9 mobile viewport
+    const gridWidth = (bounds.endCol - bounds.startCol) * cellSize;
+    const gridHeight = (bounds.endRow - bounds.startRow) * cellSize;
+    
+    const cellCol = Math.floor((x / gridWidth) * (bounds.endCol - bounds.startCol)) + bounds.startCol;
+    const cellRow = Math.floor((y / gridHeight) * (bounds.endRow - bounds.startRow)) + bounds.startRow;
+    
+    // Check if tapped cell is valid and within bounds
+    if (cellRow >= 0 && cellRow < MAZE_SIZE && cellCol >= 0 && cellCol < MAZE_SIZE) {
+      if (maze[cellRow][cellCol] === 0) { // Only move to open cells
+        // Move player to tapped cell
+        setPlayer({ row: cellRow, col: cellCol });
+        
+        // Check for interactions at new position
+        checkCellInteractions(cellRow, cellCol);
+      }
+    }
+  };
+
+  // Helper function to check for interactions at a cell
+  const checkCellInteractions = (row: number, col: number) => {
+    // Check for mob collision (bones, wolf, maw)
+    const mobTypes: Array<{ type: ModalEntityType, list: {row: number, col: number}[] }> = [
+      { type: 'wolf', list: mobs.wolves },
+      { type: 'bones', list: mobs.bones },
+      { type: 'maw', list: mobs.maws },
+    ];
+    for (const mob of mobTypes) {
+      const found = mob.list.find(m => m.row === row && m.col === col);
+      if (found) {
+        const mobKey = mob.type;
+        const config = MOB_CONFIG[mobKey];
+        const options: VsOption[] = config.data.outcomes;
+        setModal({
+          type: mob.type,
+          mobKey,
+          data: config.data,
+          row,
+          col,
+          options,
+        });
+        setRouletteResult(null);
+        setRouletteSpinning(true);
+        return;
+      }
+    }
+    
+    // Key item check
+    if (keyPos && row === keyPos.row && col === keyPos.col && !hasKey) {
+      setHasKey(true);
+      setKeyModal({ x: row, y: col });
+      setKeyPos(null);
+      return;
+    }
+    
+    // HP vial check
+    const hpVial = hpVials.find(v => v.row === row && v.col === col);
+    if (hpVial) {
+      const config = MOB_CONFIG['hp'];
+      setModal({
+        type: 'hp',
+        mobKey: 'hp',
+        data: config.data,
+        row,
+        col,
+        options: config.data.outcomes,
+      });
+      setRouletteResult(null);
+      setRouletteSpinning(true);
+      return;
+    }
+    
+    // Sealed gate check
+    if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1 && !hasKey) {
+      setSealedGateModal({ x: row, y: col });
+      return;
+    }
+    
+    // Check win condition
+    if (row === MAZE_SIZE - 1 && col === MAZE_SIZE - 1 && hasKey) {
+      setWon(true);
+      setEndModal('win');
+    }
+  };
+
+  // Mobile sidebar toggle handlers
+  const toggleLeftSidebar = () => {
+    setShowLeftSidebar(!showLeftSidebar);
+    setShowRightSidebar(false); // Close other sidebar
+  };
+
+  const toggleRightSidebar = () => {
+    setShowRightSidebar(!showRightSidebar);
+    setShowLeftSidebar(false); // Close other sidebar
+  };
+
+  const handleMobileAction = () => {
+    if (loreModal) {
+      setLoreModal(null);
+    } else if (keyModal) {
+      setKeyModal(null);
+      if (!hasKey) setHasKey(true);
+    } else if (sealedGateModal) {
+      if (hasKey) {
+        setSealedGateModal(null);
+        setHasKey(false);
+      }
+    } else if (modal && modal.options.length > 0) {
+      // Handle roulette modal interaction - same as spacebar
+      if (rouletteSpinning) {
+        // Stop roulette
+        setRouletteSpinning(false);
+      } else if (typeof rouletteResult === 'number') {
+        // Execute result - same logic as spacebar handler
+        const selectedOpt = modal.options[rouletteResult];
+        const { action, amount } = selectedOpt;
+        let battleAction: any = { type: action };
+        if (typeof amount !== 'undefined') battleAction.value = amount;
+        
+        // Special handling for teleport
+        if (action === 'teleport') {
+          const emptyCells: {row: number, col: number}[] = [];
+          for (let r = 0; r < MAZE_SIZE; r++) {
+            for (let c = 0; c < MAZE_SIZE; c++) {
+              if (maze[r][c] === 0 && !(r === 0 && c === 0) && !(r === MAZE_SIZE-1 && c === MAZE_SIZE-1)) {
+                emptyCells.push({row: r, col: c});
+              }
+            }
+          }
+          if (emptyCells.length > 0) {
+            const idx = Math.floor(Math.random() * emptyCells.length);
+            setPlayer(emptyCells[idx]);
+          }
+        } else {
+          executeBattleAction(battleAction, gameStateHandlers);
+        }
+        
+        // Always remove mob after any outcome
+        if (modal.type === 'wolf' || modal.type === 'bones' || modal.type === 'maw') {
+          setMobs(prev => {
+            const { type, row, col } = modal;
+            const bones = Array.isArray(prev.bones) ? prev.bones : [];
+            const wolves = Array.isArray(prev.wolves) ? prev.wolves : [];
+            const maws = Array.isArray(prev.maws) ? prev.maws : [];
+            return {
+              bones: type === 'bones' ? bones.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : bones,
+              wolves: type === 'wolf' ? wolves.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : wolves,
+              maws: type === 'maw' ? maws.filter((m: {row: number, col: number}) => !(m.row === row && m.col === col)) : maws,
+            };
+          });
+        } else if (modal.type === 'hp') {
+          setHpVials(vials => vials.filter(v => !(v.row === modal.row && v.col === modal.col)));
+        }
+        
+        setModal(null);
+        setTimeout(() => {
+          setRouletteResult(null);
+          setRouletteSpinning(false);
+        }, 0);
+      }
+    } else if (endModal) {
+      if (endModal === 'win' || endModal === 'lose') {
+        setEndModal(null);
+        regenerate();
+      }
+    }
+  };
+
 
 
   // Regenerate maze
@@ -785,7 +1192,18 @@ const Maze: React.FC = () => {
 
   return (
     <div className="maze-layout">
-      <div className="maze-sidebar maze-sidebar-left">
+      {/* Mobile toggle buttons */}
+      <div className="mobile-toggle-buttons">
+        <div className="mobile-toggle-btn" onClick={toggleLeftSidebar}>
+          📊 Stats
+        </div>
+        <div className="mobile-toggle-btn" onClick={toggleRightSidebar}>
+          📖 Guide
+        </div>
+      </div>
+
+      <div className={`maze-sidebar maze-sidebar-left ${showLeftSidebar ? 'mobile-visible' : ''}`}>
+        <button className="mobile-close-btn" onClick={toggleLeftSidebar}>×</button>
         <div className="player-stats-box">
           <h2>Player Stats</h2>
           <ul>
@@ -805,22 +1223,52 @@ const Maze: React.FC = () => {
         </div>
       </div>
       <div className="maze-container">
-        <div className="maze-grid">
-          {maze.map((row, rIdx) => (
-            <div className="maze-row" key={rIdx}>
-              {row.map((cell, cIdx) => {
+        <div 
+          className="maze-grid"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onClick={handleGridTap}
+          style={isMobile ? {
+            display: 'flex',
+            flexDirection: 'column',
+            border: '2px solid #666',
+            background: '#000000',
+          } : undefined}
+        >
+          {(() => {
+            const bounds = getVisibleBounds();
+            const rowsToRender = [];
+            
+            for (let rIdx = bounds.startRow; rIdx < bounds.endRow; rIdx++) {
+              const row = maze[rIdx];
+              if (!row) continue;
+              
+              const cellsToRender = [];
+              for (let cIdx = bounds.startCol; cIdx < bounds.endCol; cIdx++) {
+                const cell = row[cIdx];
+                if (cell === undefined) continue;
+                
                 let className = cell === 1 ? 'maze-wall' : 'maze-path';
                 // FOG: If fogged, render fog overlay and block lore hover
                 const fogOpacity = fog[rIdx][cIdx];
+                
+                // Apply mobile cell size
+                const cellStyle = isMobile ? {
+                  width: '35px',
+                  height: '35px',
+                  fontSize: '12px',
+                } : {};
+                
                 // Player
                 if (rIdx === player.row && cIdx === player.col) {
-                  return (
+                  cellsToRender.push(
                     <div
                       className={className}
                       key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
+                      style={{ position: 'relative', zIndex: 10, ...cellStyle }}
                       onMouseEnter={e => {
-                if (fogOpacity > 0.85) return;
+                        if (fogOpacity > 0.85) return;
                         const lore = LORE[assetToLoreTitle['player']];
                         setLoreModal({
                           title: assetToLoreTitle['player'],
@@ -841,16 +1289,17 @@ const Maze: React.FC = () => {
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
+                  continue;
                 }
                 // Bones mob
                 if (mobs.bones.some(m => m.row === rIdx && m.col === cIdx)) {
-                  return (
+                  cellsToRender.push(
                     <div
                       className={className}
                       key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
+                      style={{ position: 'relative', zIndex: 10, ...cellStyle }}
                       onMouseEnter={e => {
-                if (fogOpacity > 0.85) return;
+                        if (fogOpacity > 0.85) return;
                         const lore = LORE[assetToLoreTitle['bones']];
                         setLoreModal({
                           title: assetToLoreTitle['bones'],
@@ -871,16 +1320,17 @@ const Maze: React.FC = () => {
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
+                  continue;
                 }
                 // Wolf mob
                 if (mobs.wolves.some(m => m.row === rIdx && m.col === cIdx)) {
-                  return (
+                  cellsToRender.push(
                     <div
                       className={className}
                       key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
+                      style={{ position: 'relative', zIndex: 10, ...cellStyle }}
                       onMouseEnter={e => {
-                if (fogOpacity > 0.85) return;
+                        if (fogOpacity > 0.85) return;
                         const lore = LORE[assetToLoreTitle['wolf']];
                         setLoreModal({
                           title: assetToLoreTitle['wolf'],
@@ -901,16 +1351,17 @@ const Maze: React.FC = () => {
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
+                  continue;
                 }
                 // Maw mob
                 if (mobs.maws && mobs.maws.some(m => m.row === rIdx && m.col === cIdx)) {
-                  return (
+                  cellsToRender.push(
                     <div
                       className={className}
                       key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
+                      style={{ position: 'relative', zIndex: 10, ...cellStyle }}
                       onMouseEnter={e => {
-                if (fogOpacity > 0.85) return;
+                        if (fogOpacity > 0.85) return;
                         const lore = LORE[assetToLoreTitle['maw']];
                         setLoreModal({
                           title: assetToLoreTitle['maw'],
@@ -931,16 +1382,17 @@ const Maze: React.FC = () => {
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
+                  continue;
                 }
                 // HP vial
                 if (hpVials.some(v => v.row === rIdx && v.col === cIdx)) {
-                  return (
+                  cellsToRender.push(
                     <div
                       className={className}
                       key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
+                      style={{ position: 'relative', zIndex: 10, ...cellStyle }}
                       onMouseEnter={e => {
-                if (fogOpacity > 0.85) return;
+                        if (fogOpacity > 0.85) return;
                         const lore = LORE[assetToLoreTitle['hp']];
                         setLoreModal({
                           title: assetToLoreTitle['hp'],
@@ -961,14 +1413,15 @@ const Maze: React.FC = () => {
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
+                  continue;
                 }
                 // Key cell
                 if (keyPos && rIdx === keyPos.row && cIdx === keyPos.col) {
-                  return (
+                  cellsToRender.push(
                     <div
                       className={className}
                       key={cIdx}
-                      style={{ position: 'relative', zIndex: 10 }}
+                      style={{ position: 'relative', zIndex: 10, ...cellStyle }}
                       onMouseEnter={e => {
                         if (fogOpacity > 0.85) return;
                         const lore = LORE[assetToLoreTitle['key']];
@@ -991,10 +1444,12 @@ const Maze: React.FC = () => {
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
+                  continue;
                 }
+                
                 // Exit cell: add green glow
                 const isExit = rIdx === MAZE_SIZE - 1 && cIdx === MAZE_SIZE - 1;
-                return (
+                cellsToRender.push(
                   <div
                     className={className}
                     key={cIdx}
@@ -1006,18 +1461,33 @@ const Maze: React.FC = () => {
                       backgroundImage: isExit ? `url(${doorImg})` : undefined,
                       backgroundSize: isExit ? 'cover' : undefined,
                       backgroundPosition: isExit ? 'center' : undefined,
+                      ...cellStyle,
                     }}
                   >
                     {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                   </div>
                 );
-              })}
-            </div>
-          ))}
+              }
+              
+              rowsToRender.push(
+                <div className="maze-row" key={rIdx}>
+                  {cellsToRender}
+                </div>
+              );
+            }
+            
+            return <>{rowsToRender}</>;
+          })()}
         </div>
         {/* Key Modal (moved outside grid for reliability) */}
         {keyModal && (
-          <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
+          <div className="maze-modal vs-modal" style={{zIndex: 4000}} onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.innerWidth < 1024) {
+              setKeyModal(null);
+            }
+          }}>
             <div className="maze-modal-content" style={{
               backgroundImage: `url(${hiResBackground})`,
               backgroundSize: 'cover',
@@ -1048,7 +1518,13 @@ const Maze: React.FC = () => {
         )}
         {/* Gate Modal (moved outside grid for reliability) */}
         {sealedGateModal && (
-        <div className="maze-modal vs-modal" style={{zIndex: 4000}}>
+        <div className="maze-modal vs-modal" style={{zIndex: 4000}} onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (window.innerWidth < 1024) {
+            setSealedGateModal(null);
+          }
+        }}>
           <div className="maze-modal-content" style={{
             backgroundImage: `url(${hiResBackground})`,
             backgroundSize: 'cover',
@@ -1192,7 +1668,13 @@ const Maze: React.FC = () => {
           />
         )}
         {endModal && (
-          <div className={`maze-modal ${endModal === 'win' ? 'win-modal' : 'lose-modal'}`}>
+          <div className={`maze-modal ${endModal === 'win' ? 'win-modal' : 'lose-modal'}`} onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.innerWidth < 1024) {
+              regenerate();
+            }
+          }}>
             <div className="maze-modal-content" style={{
               backgroundImage: `url(${hiResBackground})`,
               backgroundSize: 'cover',
@@ -1212,7 +1694,8 @@ const Maze: React.FC = () => {
           </div>
         )}
       </div>
-      <div className="maze-sidebar maze-sidebar-right">
+      <div className={`maze-sidebar maze-sidebar-right ${showRightSidebar ? 'mobile-visible' : ''}`}>
+        <button className="mobile-close-btn" onClick={toggleRightSidebar}>×</button>
         <div className="maze-instructions-box">
           <h2>What remains on Shadows</h2>
           <p style={{ 
