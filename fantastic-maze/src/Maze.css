@@ -551,3 +551,71 @@
     display: none;
   }
 }
+
+/* Player sprite animation */
+.player-animated {
+  width: 40px;
+  height: 40px;
+  background-image: url('./assets/player_sprite.png');
+  background-size: 80px 80px; /* Full sprite sheet size */
+  animation: player-idle 0.8s step-end infinite; /* Base animation speed */
+}
+
+@keyframes player-idle {
+  0% { background-position: 0px 0px; }      /* Frame 1: top-left */
+  25% { background-position: -40px 0px; }   /* Frame 2: top-right */
+  50% { background-position: 0px -40px; }   /* Frame 3: bottom-left */
+  75% { background-position: -40px -40px; } /* Frame 4: bottom-right */
+  100% { background-position: 0px 0px; }    /* Back to frame 1 */
+}
+
+/* Mobile player sprite animation */
+@media (max-width: 1023px) {
+  .player-animated {
+    width: 35px !important;
+    height: 35px !important;
+    background-size: 70px 70px !important; /* Scale proportionally for mobile */
+  }
+  
+  @keyframes player-idle {
+    0% { background-position: 0px 0px; }
+    25% { background-position: -35px 0px; }   /* Scaled for mobile */
+    50% { background-position: 0px -35px; }
+    75% { background-position: -35px -35px; }
+    100% { background-position: 0px 0px; }
+  }
+}
+
+/* Bones sprite animation */
+.bones-animated {
+  width: 40px;
+  height: 40px;
+  background-image: url('./assets/bones_sprite.png');
+  background-size: 80px 80px; /* Full sprite sheet size */
+  animation: bones-idle 0.8s step-end infinite; /* Natural animation speed */
+}
+
+@keyframes bones-idle {
+  0% { background-position: 0px 0px; }      /* Frame 1: top-left */
+  25% { background-position: -40px 0px; }   /* Frame 2: top-right */
+  50% { background-position: 0px -40px; }   /* Frame 3: bottom-left */
+  75% { background-position: -40px -40px; } /* Frame 4: bottom-right */
+  100% { background-position: 0px 0px; }    /* Back to frame 1 */
+}
+
+/* Mobile bones sprite animation */
+@media (max-width: 1023px) {
+  .bones-animated {
+    width: 35px !important;
+    height: 35px !important;
+    background-size: 70px 70px !important; /* Scale proportionally for mobile */
+  }
+  
+  @keyframes bones-idle {
+    0% { background-position: 0px 0px; }
+    25% { background-position: -35px 0px; }   /* Scaled for mobile */
+    50% { background-position: 0px -35px; }
+    75% { background-position: -35px -35px; }
+    100% { background-position: 0px 0px; }
+  }
+}

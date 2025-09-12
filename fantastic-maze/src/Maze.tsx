@@ -419,6 +419,9 @@ const Maze: React.FC = () => {
   // --- Fog of War State ---
   // Move player state above fog state to avoid use-before-declare
   const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
+  const [isPlayerMoving, setIsPlayerMoving] = useState(false);
+  const [playerAnimationDuration, setPlayerAnimationDuration] = useState(0.6); // Default duration
+  const movingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [keyPos, setKeyPos] = useState<{row: number, col: number} | null>(null);
   const [hasKey, setHasKey] = useState(false);
   const [keyModal, setKeyModal] = useState<KeyModalState>(null);
@@ -693,6 +696,15 @@ const Maze: React.FC = () => {
   useEffect(() => { hpVialsRef.current = hpVials; }, [hpVials]);
   useEffect(() => { wonRef.current = won; }, [won]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (movingTimeoutRef.current) {
+        clearTimeout(movingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const modal = modalRef.current;
@@ -780,6 +792,24 @@ const Maze: React.FC = () => {
       if (e.key === 'ArrowLeft' && col > 0 && maze[row][col - 1] === 0) { col--; moved = true; }
       if (e.key === 'ArrowRight' && col < MAZE_SIZE - 1 && maze[row][col + 1] === 0) { col++; moved = true; }
       if (!moved) return;
+      
+      // Generate random animation duration and store it
+      const animationDuration = (Math.floor(Math.random() * 5) + 4) * 0.1; // 0.4-0.8s
+      const animationDurationMs = animationDuration * 1000;
+      
+      // Set player as moving and store the duration
+      setIsPlayerMoving(true);
+      setPlayerAnimationDuration(animationDuration);
+      
+      if (movingTimeoutRef.current) {
+        clearTimeout(movingTimeoutRef.current);
+      }
+      
+      // Reset to idle after one complete animation cycle
+      movingTimeoutRef.current = setTimeout(() => {
+        setIsPlayerMoving(false);
+      }, animationDurationMs);
+      
       // Update player position first
       setPlayer({ row, col });
       // Now check for mob/vial/key collision at new position
@@ -864,6 +894,23 @@ const Maze: React.FC = () => {
     if (newRow < 0 || newRow >= MAZE_SIZE || newCol < 0 || newCol >= MAZE_SIZE) return;
 
     if (maze[newRow][newCol] === 0) {
+      // Generate random animation duration and store it
+      const animationDuration = (Math.floor(Math.random() * 5) + 4) * 0.1; // 0.4-0.8s
+      const animationDurationMs = animationDuration * 1000;
+      
+      // Set player as moving and store the duration
+      setIsPlayerMoving(true);
+      setPlayerAnimationDuration(animationDuration);
+      
+      if (movingTimeoutRef.current) {
+        clearTimeout(movingTimeoutRef.current);
+      }
+      
+      // Reset to idle after one complete animation cycle
+      movingTimeoutRef.current = setTimeout(() => {
+        setIsPlayerMoving(false);
+      }, animationDurationMs);
+      
       // Update player position first
       setPlayer({ row: newRow, col: newCol });
       
@@ -1280,12 +1327,28 @@ const Maze: React.FC = () => {
                       }}
                       onMouseLeave={() => setLoreModal(null)}
                     >
-                      <img
-                        src={playerImg}
-                        alt="player"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
-                        draggable={false}
-                      />
+                      {isPlayerMoving ? (
+                        <div
+                          className="player-animated"
+                          style={{ 
+                            width: '100%', 
+                            height: '100%', 
+                            display: 'block', 
+                            pointerEvents: 'auto', 
+                            userSelect: 'none', 
+                            cursor: 'pointer',
+                            animationDelay: `${Math.random() * 0.8}s`, // Random start frame 0-0.8s
+                            animationDuration: `${playerAnimationDuration}s` // Use stored duration for exact cycle timing
+                          }}
+                        />
+                      ) : (
+                        <img
+                          src={playerImg}
+                          alt="player"
+                          style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
+                          draggable={false}
+                        />
+                      )}
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
                   );
@@ -1311,11 +1374,18 @@ const Maze: React.FC = () => {
                       }}
                       onMouseLeave={() => setLoreModal(null)}
                     >
-                      <img
-                        src={bonesImg}
-                        alt="bones"
-                        style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'auto', userSelect: 'none', cursor: 'pointer' }}
-                        draggable={false}
+                      <div
+                        className="bones-animated"
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          display: 'block', 
+                          pointerEvents: 'auto', 
+                          userSelect: 'none', 
+                          cursor: 'pointer',
+                          animationDelay: `${Math.random() * 0.8}s`, // Random start frame 0-0.8s
+                          animationDuration: `${(Math.floor(Math.random() * 5) + 4) * 0.1}s` // Random duration 0.4-0.8s in 0.1 increments
+                        }}
                       />
                       {fogOpacity > 0 && <img src={fogImg} alt="fog" style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:fogOpacity,pointerEvents:'auto',zIndex:20}} draggable={false} />}
                     </div>
