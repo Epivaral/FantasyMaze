@@ -421,7 +421,7 @@ const Maze: React.FC = () => {
   const [player, setPlayer] = useState<Player>({ row: 0, col: 0 });
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const [playerAnimationDuration, setPlayerAnimationDuration] = useState(0.6); // Default duration
-  const movingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const movingTimeoutRef = useRef<number | null>(null);
   const [keyPos, setKeyPos] = useState<{row: number, col: number} | null>(null);
   const [hasKey, setHasKey] = useState(false);
   const [keyModal, setKeyModal] = useState<KeyModalState>(null);
@@ -801,7 +801,7 @@ const Maze: React.FC = () => {
       setIsPlayerMoving(true);
       setPlayerAnimationDuration(animationDuration);
       
-      
+
       if (movingTimeoutRef.current) {
         clearTimeout(movingTimeoutRef.current);
       }
