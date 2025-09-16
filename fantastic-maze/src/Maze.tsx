@@ -801,6 +801,7 @@ const Maze: React.FC = () => {
       setIsPlayerMoving(true);
       setPlayerAnimationDuration(animationDuration);
       
+      
       if (movingTimeoutRef.current) {
         clearTimeout(movingTimeoutRef.current);
       }
